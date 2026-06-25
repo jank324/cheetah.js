@@ -1,0 +1,17 @@
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Build outputs (built dynamically by GitHub Actions)
+dist/
+docs/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log

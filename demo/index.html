@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cheetah.js Accelerator Simulation Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Modern CSS Reset & Design System Variables */
+        :root {
+            --bg-color: #08090d;
+            --panel-bg: rgba(17, 18, 25, 0.75);
+            --card-bg: rgba(26, 27, 38, 0.45);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(139, 92, 246, 0.15);
+            
+            --accent-primary: hsl(265, 85%, 64%);      /* Glowing Violet */
+            --accent-primary-hover: hsl(265, 90%, 70%);
+            --accent-cyan: hsl(190, 95%, 48%);         /* X envelope / beam */
+            --accent-pink: hsl(330, 95%, 60%);         /* Y envelope / beam */
+            --accent-gold: hsl(45, 95%, 55%);          /* Cavity / RF */
+            --accent-green: hsl(150, 85%, 45%);        /* Solenoid / correctors */
+            
+            --text-main: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            
+            --font-main: 'Outfit', sans-serif;
+            --font-mono: 'Source Code Pro', monospace;
+            
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(6, 182, 212, 0.05) 0%, transparent 40%);
+        }
+
+        header {
+            padding: 1.25rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            backdrop-filter: blur(10px);
+            background-color: rgba(8, 9, 13, 0.5);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-badge {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-cyan));
+            color: #ffffff;
+            font-weight: 700;
+            padding: 0.25rem 0.65rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+        }
+
+        .header-logo h1 {
+            font-size: 1.35rem;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #fff, var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-logo span {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-family: var(--font-mono);
+        }
+
+        .header-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .header-links a:hover {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.05);
+            border-color: var(--border-color);
+        }
+
+        /* Dashboard Container Layout */
+        .dashboard {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            height: calc(100vh - 72px);
+            overflow: hidden;
+        }
+
+        /* Sidebar Controls Panel */
+        .sidebar {
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            overflow-y: auto;
+            backdrop-filter: blur(15px);
+        }
+
+        .section-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .preset-select {
+            width: 100%;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-family: var(--font-main);
+            font-size: 0.95rem;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .preset-select:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.15);
+        }
+
+        .controls-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .control-group {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .control-group:hover {
+            border-color: rgba(255, 255, 255, 0.12);
+            background-color: rgba(26, 27, 38, 0.6);
+        }
+
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .control-name {
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        .control-value {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent-cyan);
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+        }
+
+        .control-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            margin: 0.5rem 0;
+        }
+
+        .control-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--accent-primary);
+            transition: transform 0.1s ease;
+        }
+
+        .control-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .control-limits {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        /* Main Tracking Work Area */
+        .workspace {
+            display: grid;
+            grid-template-rows: 1fr 1fr;
+            overflow: hidden;
+            background-color: rgba(0, 0, 0, 0.15);
+        }
+
+        /* Panels layout */
+        .panel {
+            padding: 1.5rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .panel:last-child {
+            border-bottom: none;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .panel-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .chart-container {
+            flex: 1;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* SVG Envelope Chart Styling */
+        .envelope-svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .envelope-axis {
+            stroke: rgba(255, 255, 255, 0.15);
+            stroke-width: 1;
+            stroke-dasharray: 4 4;
+        }
+
+        .envelope-path-x {
+            fill: none;
+            stroke: var(--accent-cyan);
+            stroke-width: 2.2;
+            filter: drop-shadow(0 0 4px rgba(6, 182, 212, 0.4));
+        }
+
+        .envelope-path-y {
+            fill: none;
+            stroke: var(--accent-pink);
+            stroke-width: 2.2;
+            filter: drop-shadow(0 0 4px rgba(236, 72, 153, 0.4));
+        }
+
+        .envelope-shade-x {
+            fill: rgba(6, 182, 212, 0.05);
+        }
+
+        .envelope-shade-y {
+            fill: rgba(236, 72, 153, 0.05);
+        }
+
+        .lattice-bar {
+            fill: rgba(255, 255, 255, 0.03);
+            stroke: rgba(255, 255, 255, 0.08);
+            stroke-width: 1;
+        }
+
+        /* Lower Panel Split: Scatter Plot + Metrics */
+        .diagnostics-split {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 1.5rem;
+            min-height: 0; /* Important for flex child overflow */
+        }
+
+        .scatter-card {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            position: relative;
+        }
+
+        .canvas-wrapper {
+            flex: 1;
+            background-color: #050608;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .metrics-card {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            overflow-y: auto;
+        }
+
+        .metric-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            padding-bottom: 0.75rem;
+        }
+
+        .metric-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .metric-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 1.4rem;
+            font-weight: 600;
+            font-family: var(--font-mono);
+            color: var(--text-main);
+        }
+
+        .metric-unit {
+            font-size: 0.85rem;
+            font-weight: 400;
+            color: var(--text-secondary);
+            margin-left: 0.25rem;
+        }
+
+        .tab-buttons {
+            display: flex;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            padding: 0.15rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.4rem 0.8rem;
+            font-family: var(--font-main);
+            font-size: 0.85rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            background-color: var(--accent-primary);
+            color: #ffffff;
+            box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
+        }
+
+        /* Screen Selector Dropdown */
+        .screen-select {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            font-family: var(--font-main);
+            font-size: 0.85rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        /* Tooltips and overlay styling */
+        .plot-tooltip {
+            position: absolute;
+            background-color: rgba(10, 11, 16, 0.95);
+            border: 1px solid var(--accent-primary);
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            z-index: 100;
+            box-shadow: var(--shadow-md);
+            font-family: var(--font-mono);
+        }
+
+        /* JSON Paste overlay */
+        .json-modal-trigger {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-family: var(--font-main);
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+            text-align: center;
+        }
+
+        .json-modal-trigger:hover {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.05);
+            border-color: var(--accent-primary);
+        }
+
+        .json-editor-pane {
+            display: none;
+            position: fixed;
+            top: 72px;
+            right: 0;
+            bottom: 0;
+            width: 500px;
+            background-color: var(--bg-color);
+            border-left: 1px solid var(--border-color);
+            z-index: 20;
+            padding: 1.5rem;
+            flex-direction: column;
+            gap: 1rem;
+            box-shadow: var(--shadow-lg);
+            backdrop-filter: blur(20px);
+        }
+
+        .json-textarea {
+            flex: 1;
+            background-color: #040507;
+            border: 1px solid var(--border-color);
+            color: #a78bfa;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            padding: 1rem;
+            border-radius: 8px;
+            resize: none;
+            outline: none;
+        }
+
+        .json-textarea:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .json-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-family: var(--font-main);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: rgba(255, 255, 255, 0.06);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-logo">
+            <div class="logo-badge">DESY</div>
+            <h1>Cheetah.js</h1>
+            <span>v0.1.0 (JS Port)</span>
+        </div>
+        <div class="header-links">
+            <button class="tab-btn active" style="margin-right: 0.5rem;" onclick="toggleJSONEditor()">LatticeJSON Editor</button>
+            <a href="https://github.com/desy-ml/cheetah" target="_blank">Cheetah Python</a>
+        </div>
+    </header>
+
+    <div class="dashboard">
+        <!-- Sidebar: Presets and Slider Controls -->
+        <div class="sidebar">
+            <div>
+                <h3 class="section-title">Lattice Design Presets</h3>
+                <select id="presetSelect" class="preset-select" onchange="loadPreset()">
+                    <option value="fodo">FODO Focussing Cell</option>
+                    <option value="injector">RF Injector Section</option>
+                </select>
+            </div>
+
+            <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <h3 class="section-title">
+                    <span>Element Tuning</span>
+                    <span style="font-family: var(--font-mono); font-size: 0.75rem;" id="tuningCount">0 sliders</span>
+                </h3>
+                <div id="slidersContainer" class="controls-list" style="flex: 1; overflow-y: auto; padding-right: 0.25rem;">
+                    <!-- Sliders dynamically populated -->
+                </div>
+            </div>
+
+            <button class="json-modal-trigger" onclick="toggleJSONEditor()">
+                Paste Custom LatticeJSON...
+            </button>
+        </div>
+
+        <!-- Main Workspace: Envelope Plot and 2D Diagnostics -->
+        <div class="workspace">
+            <!-- Upper Panel: SVG Envelope Chart -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div>
+                        <h2 class="panel-title">Longitudinal Beam Envelope</h2>
+                        <span class="panel-subtitle">Root-mean-square beam sizes (&sigma;<sub>x</sub>, &sigma;<sub>y</sub>) along the beamline</span>
+                    </div>
+                    <div style="display: flex; gap: 1rem; font-size: 0.85rem;">
+                        <span style="color: var(--accent-cyan); display: flex; align-items: center; gap: 0.35rem;">
+                            <span style="width: 12px; height: 3px; background-color: var(--accent-cyan); display: inline-block;"></span>
+                            &sigma;<sub>x</sub> (Horizontal)
+                        </span>
+                        <span style="color: var(--accent-pink); display: flex; align-items: center; gap: 0.35rem;">
+                            <span style="width: 12px; height: 3px; background-color: var(--accent-pink); display: inline-block;"></span>
+                            &sigma;<sub>y</sub> (Vertical)
+                        </span>
+                    </div>
+                </div>
+                <div class="chart-container" id="svgContainer">
+                    <div class="plot-tooltip" id="svgTooltip"></div>
+                    <svg class="envelope-svg" id="envelopeSvg" viewBox="0 0 1000 320" preserveAspectRatio="none">
+                        <!-- Content generated dynamically -->
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Lower Panel: 2D Screen Diagnostics & Metrics -->
+            <div class="panel" style="background-color: rgba(0, 0, 0, 0.08);">
+                <div class="panel-header">
+                    <div>
+                        <h2 class="panel-title">Transverse Diagnostic Spot</h2>
+                        <span class="panel-subtitle">Particle coordinate distribution (x vs y) at diagnostic diagnostic stations</span>
+                    </div>
+                    <div style="display: flex; gap: 0.75rem; align-items: center;">
+                        <label class="metric-label" style="font-size: 0.75rem;">Diagnostic Point:</label>
+                        <select id="screenSelect" class="screen-select" onchange="updateScreenView()">
+                            <!-- Screens dynamically populated -->
+                        </select>
+                        <div class="tab-buttons">
+                            <button id="tabPart" class="tab-btn active" onclick="setPlotMode('xy')">x vs y</button>
+                            <button id="tabXpx" class="tab-btn" onclick="setPlotMode('xpx')">x vs p<sub>x</sub></button>
+                            <button id="tabYpy" class="tab-btn" onclick="setPlotMode('ypy')">y vs p<sub>y</sub></button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diagnostics-split">
+                    <!-- Scatter Plot Card -->
+                    <div class="scatter-card">
+                        <div class="canvas-wrapper" id="canvasWrapper">
+                            <canvas id="scatterCanvas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Metrics/Stats Panel -->
+                    <div class="metrics-card">
+                        <div class="metric-item">
+                            <div class="metric-label">Reference Beam Energy</div>
+                            <div class="metric-value" id="valEnergy">100.0<span class="metric-unit">MeV</span></div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">RMS Size X / Y</div>
+                            <div class="metric-value" style="font-size: 1.15rem;" id="valRms">
+                                <span style="color: var(--accent-cyan);" id="valRmsX">150.0</span> / 
+                                <span style="color: var(--accent-pink);" id="valRmsY">150.0</span>
+                                <span class="metric-unit">&mu;m</span>
+                            </div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Survived Charge</div>
+                            <div class="metric-value" id="valCharge">1.00<span class="metric-unit">nC (100.0%)</span></div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Beam Position (s)</div>
+                            <div class="metric-value" id="valS">0.00<span class="metric-unit">m</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide-in JSON Editor Modal -->
+    <div class="json-editor-pane" id="jsonEditor">
+        <h3 class="section-title">LatticeJSON Editor</h3>
+        <p style="font-size: 0.85rem; color: var(--text-secondary);">
+            Paste a valid Cheetah-compatible LatticeJSON representation below to reload and track custom lattices in real time.
+        </p>
+        <textarea class="json-textarea" id="jsonTextarea" spellcheck="false"></textarea>
+        <div class="json-actions">
+            <button class="btn btn-secondary" onclick="toggleJSONEditor()">Close</button>
+            <button class="btn btn-primary" onclick="loadCustomJSON()">Load & Simulate</button>
+        </div>
+    </div>
+
+    <!-- Load bundled cheetah.js -->
+    <script src="../dist/cheetah.js"></script>
+
+    <script>
+        // Preset Definitions
+        const PRESETS = {
+            fodo: {
+                root: "fodo",
+                elements: {
+                    "d1": ["Drift", {"length": 0.5}],
+                    "qf": ["Quadrupole", {"length": 0.2, "k1": 3.8, "name": "qf"}],
+                    "d2": ["Drift", {"length": 1.0}],
+                    "qd": ["Quadrupole", {"length": 0.2, "k1": -3.8, "name": "qd"}],
+                    "d3": ["Drift", {"length": 0.5}],
+                    "screen": ["Screen", {"is_active": true, "is_blocking": false, "name": "screen"}]
+                },
+                lattices: {
+                    "fodo": ["d1", "qf", "d2", "qd", "d3", "screen"]
+                }
+            },
+            injector: {
+                root: "injector",
+                elements: {
+                    "d1": ["Drift", {"length": 0.3}],
+                    "sol1": ["Solenoid", {"length": 0.2, "k": 3.5, "name": "sol1"}],
+                    "d2": ["Drift", {"length": 0.3}],
+                    "rfc": ["Cavity", {"length": 1.0, "voltage": 7e6, "phase": -15.0, "frequency": 1.3e9, "name": "rfc"}],
+                    "d3": ["Drift", {"length": 0.4}],
+                    "q1": ["Quadrupole", {"length": 0.15, "k1": 4.5, "name": "q1"}],
+                    "d4": ["Drift", {"length": 0.4}],
+                    "q2": ["Quadrupole", {"length": 0.15, "k1": -4.5, "name": "q2"}],
+                    "d5": ["Drift", {"length": 0.3}],
+                    "bpm1": ["BPM", {"is_active": true, "name": "bpm1"}],
+                    "screen1": ["Screen", {"is_active": true, "is_blocking": false, "name": "screen1"}]
+                },
+                lattices: {
+                    "injector": ["d1", "sol1", "d2", "rfc", "d3", "q1", "d4", "q2", "d5", "bpm1", "screen1"]
+                }
+            }
+        };
+
+        // Application State
+        let currentLatticeJSON = null;
+        let segment = null;
+        let initialParamBeam = null;
+        let initialPartBeam = null;
+        let plotMode = 'xy'; // 'xy', 'xpx', 'ypy'
+        let selectedScreenName = '';
+
+        // Initialize Application on window load
+        window.addEventListener('DOMContentLoaded', () => {
+            // Set textarea value default
+            document.getElementById('jsonTextarea').value = JSON.stringify(PRESETS.fodo, null, 2);
+            
+            // Set up resize handler for canvas
+            const canvas = document.getElementById('scatterCanvas');
+            const resizeCanvas = () => {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+                simulateAndDraw();
+            };
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Initial load
+            loadPreset();
+            setTimeout(resizeCanvas, 100);
+        });
+
+        // Toggle sliding JSON Editor Pane
+        function toggleJSONEditor() {
+            const pane = document.getElementById('jsonEditor');
+            if (pane.style.display === 'flex') {
+                pane.style.display = 'none';
+            } else {
+                pane.style.display = 'flex';
+                // Sync textarea with current state if loaded
+                if (currentLatticeJSON) {
+                    document.getElementById('jsonTextarea').value = JSON.stringify(currentLatticeJSON, null, 2);
+                }
+            }
+        }
+
+        // Load Preset from Select element
+        function loadPreset() {
+            const val = document.getElementById('presetSelect').value;
+            currentLatticeJSON = PRESETS[val];
+            document.getElementById('jsonTextarea').value = JSON.stringify(currentLatticeJSON, null, 2);
+            initializeLatticeAndBeams();
+        }
+
+        // Load custom JSON typed/pasted by user
+        function loadCustomJSON() {
+            try {
+                const text = document.getElementById('jsonTextarea').value;
+                const parsed = JSON.parse(text);
+                if (!parsed.root || !parsed.elements || !parsed.lattices) {
+                    throw new Error("LatticeJSON must contain 'root', 'elements', and 'lattices' keys.");
+                }
+                currentLatticeJSON = parsed;
+                initializeLatticeAndBeams();
+                toggleJSONEditor();
+            } catch (e) {
+                alert(`Error parsing JSON: ${e.message}`);
+            }
+        }
+
+        // Initialize beams and element list from JSON representation
+        function initializeLatticeAndBeams() {
+            // Parse segment
+            segment = cheetah.parseLatticeJSON(currentLatticeJSON);
+            
+            // Standard Initial Beams for demo
+            initialParamBeam = cheetah.ParameterBeam.fromTwiss({
+                beta_x: 2.0, alpha_x: -0.5, emittance_x: 1.5e-8,
+                beta_y: 3.0, alpha_y: 0.2, emittance_y: 1.5e-8,
+                sigma_tau: 2e-5, sigma_p: 2e-3,
+                energy: 1e8, // 100 MeV
+                total_charge: 1e-9 // 1 nC
+            });
+            
+            initialPartBeam = cheetah.ParticleBeam.fromTwiss({
+                num_particles: 500,
+                beta_x: 2.0, alpha_x: -0.5, emittance_x: 1.5e-8,
+                beta_y: 3.0, alpha_y: 0.2, emittance_y: 1.5e-8,
+                sigma_tau: 2e-5, sigma_p: 2e-3,
+                energy: 1e8,
+                total_charge: 1e-9
+            });
+
+            // Populate Sliders
+            populateSliders();
+            
+            // Populate screen selector
+            populateScreenSelect();
+
+            // Run simulation and draw charts
+            simulateAndDraw();
+        }
+
+        // Extract adjustible elements and populate sidebar sliders
+        function populateSliders() {
+            const container = document.getElementById('slidersContainer');
+            container.innerHTML = '';
+            
+            const flattened = segment.flattened().elements;
+            let slidersCount = 0;
+            
+            flattened.forEach(el => {
+                let label = '';
+                let key = '';
+                let min = 0;
+                let max = 0;
+                let step = 0.01;
+                let value = 0;
+                let unit = '';
+                
+                if (el instanceof cheetah.Quadrupole) {
+                    label = `Quadrupole '${el.name}'`;
+                    key = 'k1';
+                    value = el.k1;
+                    min = -15.0;
+                    max = 15.0;
+                    step = 0.05;
+                    unit = ' 1/m²';
+                } else if (el instanceof cheetah.Cavity) {
+                    label = `Cavity Voltage '${el.name}'`;
+                    key = 'voltage';
+                    value = el.voltage;
+                    min = 0.0;
+                    max = 15e6;
+                    step = 100000;
+                    unit = ' V';
+                    
+                    // Also create a phase slider
+                    createSliderItem(container, el, 'phase', `Cavity Phase '${el.name}'`, -180.0, 180.0, 1.0, el.phase, '°');
+                    slidersCount++;
+                } else if (el instanceof cheetah.Solenoid) {
+                    label = `Solenoid strength '${el.name}'`;
+                    key = 'k';
+                    value = el.k;
+                    min = -10.0;
+                    max = 10.0;
+                    step = 0.05;
+                    unit = ' T/m';
+                } else if (el instanceof cheetah.HorizontalCorrector || el instanceof cheetah.VerticalCorrector) {
+                    label = `Corrector Angle '${el.name}'`;
+                    key = 'angle';
+                    value = el.angle * 1000; // millirad
+                    min = -5.0;
+                    max = 5.0;
+                    step = 0.05;
+                    unit = ' mrad';
+                } else if (el instanceof cheetah.CombinedCorrector) {
+                    createSliderItem(container, el, 'horizontal_angle', `Corr Horiz '${el.name}'`, -5.0, 5.0, 0.05, el.horizontal_angle * 1000, ' mrad', true);
+                    createSliderItem(container, el, 'vertical_angle', `Corr Vert '${el.name}'`, -5.0, 5.0, 0.05, el.vertical_angle * 1000, ' mrad', true);
+                    slidersCount += 2;
+                }
+                
+                if (key) {
+                    createSliderItem(container, el, key, label, min, max, step, value, unit);
+                    slidersCount++;
+                }
+            });
+            
+            document.getElementById('tuningCount').innerText = `${slidersCount} sliders`;
+        }
+
+        // Helper to construct slider DOM structure
+        function createSliderItem(container, element, key, label, min, max, step, initialValue, unit, isCorrectorScale = false) {
+            const group = document.createElement('div');
+            group.className = 'control-group';
+            
+            const header = document.createElement('div');
+            header.className = 'control-header';
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'control-name';
+            nameSpan.innerText = label;
+            
+            const valueSpan = document.createElement('span');
+            valueSpan.className = 'control-value';
+            valueSpan.id = `val_${element.name}_${key}`;
+            valueSpan.innerText = initialValue.toFixed(2) + unit;
+            
+            header.appendChild(nameSpan);
+            header.appendChild(valueSpan);
+            
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.className = 'control-slider';
+            slider.min = min;
+            slider.max = max;
+            slider.step = step;
+            slider.value = initialValue;
+            
+            slider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                valueSpan.innerText = val.toFixed(2) + unit;
+                
+                // Update element parameter directly
+                if (isCorrectorScale) {
+                    element[key] = val / 1000.0; // scale from mrad to rad
+                } else {
+                    element[key] = val;
+                }
+                
+                simulateAndDraw();
+            });
+            
+            const limits = document.createElement('div');
+            limits.className = 'control-limits';
+            
+            const minSpan = document.createElement('span');
+            minSpan.innerText = min.toFixed(1);
+            const maxSpan = document.createElement('span');
+            maxSpan.innerText = max.toFixed(1);
+            
+            limits.appendChild(minSpan);
+            limits.appendChild(maxSpan);
+            
+            group.appendChild(header);
+            group.appendChild(slider);
+            group.appendChild(limits);
+            container.appendChild(group);
+        }
+
+        // Populate Screen/BPM list dropdown
+        function populateScreenSelect() {
+            const select = document.getElementById('screenSelect');
+            select.innerHTML = '';
+            
+            const flattened = segment.flattened().elements;
+            let index = 0;
+            
+            // Add Start option
+            const optStart = document.createElement('option');
+            optStart.value = 'START';
+            optStart.innerText = 'Start of Beamline';
+            select.appendChild(optStart);
+
+            flattened.forEach(el => {
+                if (el instanceof cheetah.Screen || el instanceof cheetah.BPM || el instanceof cheetah.Aperture) {
+                    const opt = document.createElement('option');
+                    opt.value = el.name;
+                    opt.innerText = `${el.constructor.name}: ${el.name}`;
+                    select.appendChild(opt);
+                }
+            });
+            
+            // Default selected
+            if (select.children.length > 1) {
+                select.selectedIndex = select.children.length - 1; // last screen
+            }
+            selectedScreenName = select.value;
+        }
+
+        function updateScreenView() {
+            selectedScreenName = document.getElementById('screenSelect').value;
+            simulateAndDraw();
+        }
+
+        function setPlotMode(mode) {
+            plotMode = mode;
+            document.getElementById('tabPart').classList.remove('active');
+            document.getElementById('tabXpx').classList.remove('active');
+            document.getElementById('tabYpy').classList.remove('active');
+            
+            if (mode === 'xy') document.getElementById('tabPart').classList.add('active');
+            if (mode === 'xpx') document.getElementById('tabXpx').classList.add('active');
+            if (mode === 'ypy') document.getElementById('tabYpy').classList.add('active');
+            
+            simulateAndDraw();
+        }
+
+        // Run simulation tracking, render SVG envelopes and Canvas scatter plot
+        function simulateAndDraw() {
+            if (!segment) return;
+            
+            // 1. High resolution envelope tracking using ParameterBeam
+            // We split to 0.02m for smooth curves
+            const splitRes = 0.02;
+            const splitSeg = segment.split(splitRes);
+            
+            // Get all beams along split segment
+            const envelopeBeams = splitSeg.get_beams_along_segment(initialParamBeam);
+            
+            // Track particles through standard (un-split) segment for screen diagnostics and speed
+            const trackBeams = segment.get_beams_along_segment(initialPartBeam);
+            
+            // Find which beam to show in the Canvas scatter plot
+            let activeDiagnosticBeam = trackBeams[0]; // Start
+            let activeDiagIndex = 0;
+            
+            if (selectedScreenName !== 'START') {
+                const flattened = segment.flattened().elements;
+                for (let i = 0; i < flattened.length; i++) {
+                    if (flattened[i].name === selectedScreenName) {
+                        activeDiagnosticBeam = trackBeams[i + 1];
+                        activeDiagIndex = i + 1;
+                        break;
+                    }
+                }
+            }
+
+            // Update Metrics Sidebar
+            updateMetrics(activeDiagnosticBeam);
+            
+            // 2. Draw SVG Envelope Chart
+            drawSVGEnvelope(envelopeBeams, splitSeg);
+            
+            // 3. Draw Canvas Particle Distribution
+            drawCanvasScatter(activeDiagnosticBeam);
+        }
+
+        // Update the textual metric badges
+        function updateMetrics(beam) {
+            // Energy
+            const MeV = beam.energy / 1e6;
+            document.getElementById('valEnergy').innerHTML = `${MeV.toFixed(1)}<span class="metric-unit">MeV</span>`;
+            
+            // Size in micrometers
+            const sxUm = beam.sigma_x * 1e6;
+            const syUm = beam.sigma_y * 1e6;
+            document.getElementById('valRmsX').innerText = sxUm.toFixed(1);
+            document.getElementById('valRmsY').innerText = syUm.toFixed(1);
+            
+            // Charge / Survival
+            let pct = 100.0;
+            if (beam instanceof cheetah.ParticleBeam) {
+                // calculate actual survival probability percentage
+                let sumProb = 0.0;
+                for (let i = 0; i < beam.survival_probabilities.length; i++) {
+                    sumProb += beam.survival_probabilities[i];
+                }
+                pct = (sumProb / beam.survival_probabilities.length) * 100.0;
+            }
+            const nC = beam.total_charge * 1e9;
+            document.getElementById('valCharge').innerHTML = `${nC.toFixed(2)}<span class="metric-unit">nC (${pct.toFixed(1)}%)</span>`;
+            
+            // Position s
+            document.getElementById('valS').innerHTML = `${beam.s.toFixed(2)}<span class="metric-unit">m</span>`;
+        }
+
+        // Render the double envelope SVG plot with element symbols
+        function drawSVGEnvelope(beams, splitSeg) {
+            const svg = document.getElementById('envelopeSvg');
+            svg.innerHTML = '';
+            
+            const width = 1000;
+            const height = 320;
+            const margin = { top: 30, right: 30, bottom: 60, left: 50 };
+            
+            const maxS = beams[beams.length - 1].s;
+            
+            // Find max sigma to scale Y axis
+            let maxSigma = 0.0;
+            beams.forEach(b => {
+                if (b.sigma_x > maxSigma) maxSigma = b.sigma_x;
+                if (b.sigma_y > maxSigma) maxSigma = b.sigma_y;
+            });
+            if (maxSigma === 0) maxSigma = 1e-4; // default scale
+            
+            // Multiply maxSigma by 1.15 to give padding at top/bottom
+            maxSigma *= 1.15;
+            
+            const scaleX = (s) => margin.left + (s / maxS) * (width - margin.left - margin.right);
+            const scaleY = (val) => (height - margin.bottom) / 2 + margin.top / 2 - (val / maxSigma) * ((height - margin.bottom - margin.top) / 2);
+            
+            // Draw axis center line
+            const midY = scaleY(0);
+            const axisLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            axisLine.setAttribute('x1', margin.left);
+            axisLine.setAttribute('y1', midY);
+            axisLine.setAttribute('x2', width - margin.right);
+            axisLine.setAttribute('y2', midY);
+            axisLine.setAttribute('class', 'envelope-axis');
+            svg.appendChild(axisLine);
+            
+            // Build paths for envelopes
+            let pxTop = `M ${scaleX(beams[0].s)} ${scaleY(beams[0].sigma_x)}`;
+            let pxBot = `M ${scaleX(beams[0].s)} ${scaleY(-beams[0].sigma_x)}`;
+            let pyTop = `M ${scaleX(beams[0].s)} ${scaleY(beams[0].sigma_y)}`;
+            let pyBot = `M ${scaleX(beams[0].s)} ${scaleY(-beams[0].sigma_y)}`;
+            
+            let shadeX = `M ${scaleX(beams[0].s)} ${scaleY(beams[0].sigma_x)}`;
+            let shadeY = `M ${scaleX(beams[0].s)} ${scaleY(beams[0].sigma_y)}`;
+            
+            for (let i = 1; i < beams.length; i++) {
+                const xVal = scaleX(beams[i].s);
+                pxTop += ` L ${xVal} ${scaleY(beams[i].sigma_x)}`;
+                pxBot += ` L ${xVal} ${scaleY(-beams[i].sigma_x)}`;
+                pyTop += ` L ${xVal} ${scaleY(beams[i].sigma_y)}`;
+                pyBot += ` L ${xVal} ${scaleY(-beams[i].sigma_y)}`;
+                
+                shadeX += ` L ${xVal} ${scaleY(beams[i].sigma_x)}`;
+                shadeY += ` L ${xVal} ${scaleY(beams[i].sigma_y)}`;
+            }
+            
+            // Close shade paths
+            for (let i = beams.length - 1; i >= 0; i--) {
+                const xVal = scaleX(beams[i].s);
+                shadeX += ` L ${xVal} ${scaleY(-beams[i].sigma_x)}`;
+                shadeY += ` L ${xVal} ${scaleY(-beams[i].sigma_y)}`;
+            }
+            shadeX += ' Z';
+            shadeY += ' Z';
+            
+            // Draw shades
+            const pathShadeX = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathShadeX.setAttribute('d', shadeX);
+            pathShadeX.setAttribute('class', 'envelope-shade-x');
+            svg.appendChild(pathShadeX);
+            
+            const pathShadeY = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathShadeY.setAttribute('d', shadeY);
+            pathShadeY.setAttribute('class', 'envelope-shade-y');
+            svg.appendChild(pathShadeY);
+            
+            // Draw path lines
+            const pathXTop = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathXTop.setAttribute('d', pxTop);
+            pathXTop.setAttribute('class', 'envelope-path-x');
+            svg.appendChild(pathXTop);
+            
+            const pathXBot = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathXBot.setAttribute('d', pxBot);
+            pathXBot.setAttribute('class', 'envelope-path-x');
+            svg.appendChild(pathXBot);
+
+            const pathYTop = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathYTop.setAttribute('d', pyTop);
+            pathYTop.setAttribute('class', 'envelope-path-y');
+            svg.appendChild(pathYTop);
+            
+            const pathYBot = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathYBot.setAttribute('d', pyBot);
+            pathYBot.setAttribute('class', 'envelope-path-y');
+            svg.appendChild(pathYBot);
+            
+            // 3. Draw Lattice Component Bar at the bottom
+            const latticeY = height - 35;
+            const bar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            bar.setAttribute('x', margin.left);
+            bar.setAttribute('y', latticeY);
+            bar.setAttribute('width', width - margin.left - margin.right);
+            bar.setAttribute('height', 20);
+            bar.setAttribute('class', 'lattice-bar');
+            bar.setAttribute('rx', '4');
+            svg.appendChild(bar);
+            
+            // Draw elements inside the bar
+            let currentS = 0.0;
+            const elements = segment.flattened().elements;
+            
+            elements.forEach(el => {
+                const elWidth = el.length;
+                const startX = scaleX(currentS);
+                const endX = scaleX(currentS + elWidth);
+                const drawW = Math.max(2.0, endX - startX); // minimum 2px visible width
+                
+                // Draw graphic block based on element class type
+                let color = 'rgba(255, 255, 255, 0.15)';
+                let symbolH = 14;
+                let symbolY = latticeY + 3;
+                let isLabelable = false;
+                
+                if (el instanceof cheetah.Quadrupole) {
+                    color = el.k1 > 0 ? 'rgba(239, 68, 68, 0.7)' : 'rgba(59, 130, 246, 0.7)'; // Red = QF, Blue = QD
+                    symbolH = 18;
+                    symbolY = latticeY + 1;
+                    isLabelable = true;
+                } else if (el instanceof cheetah.Cavity) {
+                    color = 'rgba(245, 158, 11, 0.75)'; // Gold
+                    symbolH = 16;
+                    symbolY = latticeY + 2;
+                    isLabelable = true;
+                } else if (el instanceof cheetah.Solenoid) {
+                    color = 'rgba(16, 185, 129, 0.7)'; // Green Solenoid
+                    symbolH = 16;
+                    symbolY = latticeY + 2;
+                    isLabelable = true;
+                } else if (el instanceof cheetah.BPM) {
+                    color = 'rgba(255, 255, 255, 0.7)'; // BPM line
+                    drawW = 1.5;
+                    symbolH = 26;
+                    symbolY = latticeY - 3;
+                } else if (el instanceof cheetah.Screen) {
+                    color = 'rgba(236, 72, 153, 0.9)'; // Screen pink line
+                    drawW = 1.5;
+                    symbolH = 26;
+                    symbolY = latticeY - 3;
+                } else if (el instanceof cheetah.Aperture) {
+                    color = 'rgba(139, 92, 246, 0.8)'; // Violet Aperture bounds
+                    drawW = 2.5;
+                    symbolH = 24;
+                    symbolY = latticeY - 2;
+                } else if (el instanceof cheetah.Drift) {
+                    // Drifts are just gray borders
+                    color = 'rgba(255, 255, 255, 0.05)';
+                    symbolH = 10;
+                    symbolY = latticeY + 5;
+                }
+                
+                const block = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                block.setAttribute('x', startX);
+                block.setAttribute('y', symbolY);
+                block.setAttribute('width', drawW);
+                block.setAttribute('height', symbolH);
+                block.setAttribute('fill', color);
+                block.setAttribute('rx', el.length > 0 ? '2' : '0');
+                
+                // Add tooltip events
+                block.addEventListener('mouseenter', (e) => {
+                    const tooltip = document.getElementById('svgTooltip');
+                    tooltip.style.opacity = 1;
+                    tooltip.innerHTML = `<strong>${el.constructor.name}</strong>: ${el.name}<br>s: ${currentS.toFixed(2)} - ${(currentS + elWidth).toFixed(2)} m<br>Length: ${el.length.toFixed(2)} m`;
+                    
+                    const rect = svg.getBoundingClientRect();
+                    const ttX = e.clientX - rect.left + 15;
+                    const ttY = e.clientY - rect.top - 40;
+                    tooltip.style.left = `${ttX}px`;
+                    tooltip.style.top = `${ttY}px`;
+                });
+                block.addEventListener('mouseleave', () => {
+                    document.getElementById('svgTooltip').style.opacity = 0;
+                });
+                
+                svg.appendChild(block);
+                
+                // Add labels for main magnets
+                if (isLabelable && drawW > 12) {
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', startX + drawW / 2);
+                    text.setAttribute('y', latticeY + 34);
+                    text.setAttribute('fill', 'var(--text-secondary)');
+                    text.setAttribute('font-size', '10px');
+                    text.setAttribute('text-anchor', 'middle');
+                    text.textContent = el.name;
+                    svg.appendChild(text);
+                }
+                
+                currentS += elWidth;
+            });
+            
+            // Render grid ticks along the bottom
+            const ticksNum = 6;
+            for (let i = 0; i <= ticksNum; i++) {
+                const sVal = (i / ticksNum) * maxS;
+                const xVal = scaleX(sVal);
+                
+                const tickLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                tickLine.setAttribute('x1', xVal);
+                tickLine.setAttribute('y1', latticeY + 20);
+                tickLine.setAttribute('x2', xVal);
+                tickLine.setAttribute('y2', latticeY + 24);
+                tickLine.setAttribute('stroke', 'rgba(255, 255, 255, 0.2)');
+                tickLine.setAttribute('stroke-width', '1');
+                svg.appendChild(tickLine);
+                
+                const tickText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                tickText.setAttribute('x', xVal);
+                tickText.setAttribute('y', latticeY + 36);
+                tickText.setAttribute('fill', 'var(--text-muted)');
+                tickText.setAttribute('font-size', '10px');
+                tickText.setAttribute('text-anchor', 'middle');
+                tickText.setAttribute('font-family', 'var(--font-mono)');
+                tickText.textContent = `${sVal.toFixed(1)}m`;
+                svg.appendChild(tickText);
+            }
+        }
+
+        // Render the 2D macroparticle distribution plot
+        function drawCanvasScatter(beam) {
+            const canvas = document.getElementById('scatterCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            if (!(beam instanceof cheetah.ParticleBeam)) {
+                // If it is ParameterBeam, draw a representative gaussian ellipse
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                ctx.fillRect(0, 0, width, height);
+                ctx.fillStyle = 'var(--text-muted)';
+                ctx.font = '14px Outfit';
+                ctx.textAlign = 'center';
+                ctx.fillText('Select a diagnostic screen or BPM to view particle distribution', width / 2, height / 2);
+                return;
+            }
+            
+            const particles = beam.particles;
+            const survival = beam.survival_probabilities;
+            const N = particles.length;
+            
+            // Choose variables based on plotMode
+            let idxX = 0, idxY = 2; // x vs y
+            let labelX = 'x (mm)', labelY = 'y (mm)';
+            let colorParticle = 'rgba(6, 182, 212, 0.75)'; // Cyan
+            
+            if (plotMode === 'xpx') {
+                idxX = 0; idxY = 1;
+                labelX = 'x (mm)'; labelY = 'p_x (mrad)';
+                colorParticle = 'rgba(139, 92, 246, 0.75)'; // Violet
+            } else if (plotMode === 'ypy') {
+                idxX = 2; idxY = 3;
+                labelX = 'y (mm)'; labelY = 'p_y (mrad)';
+                colorParticle = 'rgba(236, 72, 153, 0.75)'; // Pink
+            }
+            
+            // Find scale limits based on values
+            let maxX = 1e-4, maxY = 1e-4;
+            for (let i = 0; i < N; i++) {
+                if (survival[i] === 0.0) continue;
+                const xVal = Math.abs(particles[i][idxX]);
+                const yVal = Math.abs(particles[i][idxY]);
+                if (xVal > maxX) maxX = xVal;
+                if (yVal > maxY) maxY = yVal;
+            }
+            
+            // Pad limits
+            maxX *= 1.25;
+            maxY *= 1.25;
+            
+            const scaleFactorX = (width - 60) / 2 / maxX;
+            const scaleFactorY = (height - 60) / 2 / maxY;
+            
+            const cx = width / 2;
+            const cy = height / 2;
+            
+            // Draw grid lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+            ctx.lineWidth = 1;
+            
+            // Crosshairs
+            ctx.beginPath();
+            ctx.moveTo(0, cy); ctx.lineTo(width, cy);
+            ctx.moveTo(cx, 0); ctx.lineTo(cx, height);
+            ctx.stroke();
+            
+            // Box boundaries
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.strokeRect(30, 30, width - 60, height - 60);
+            
+            // Draw ticks & labels
+            ctx.fillStyle = 'var(--text-muted)';
+            ctx.font = '10px Source Code Pro';
+            ctx.textAlign = 'center';
+            
+            // X-axis limit labels (convert coordinates to mm or mrad for display)
+            const multiplierX = idxX === 0 || idxX === 2 ? 1000.0 : 1000.0; // mm or mrad
+            const multiplierY = idxY === 0 || idxY === 2 ? 1000.0 : 1000.0;
+            
+            ctx.fillText((maxX * multiplierX).toFixed(1), width - 35, cy + 15);
+            ctx.fillText((-maxX * multiplierX).toFixed(1), 35, cy + 15);
+            
+            ctx.textAlign = 'right';
+            ctx.fillText((maxY * multiplierY).toFixed(1), cx - 10, 40);
+            ctx.fillText((-maxY * multiplierY).toFixed(1), cx - 10, height - 35);
+            
+            // Axis labels
+            ctx.fillStyle = 'var(--text-secondary)';
+            ctx.font = '12px Outfit';
+            ctx.textAlign = 'center';
+            ctx.fillText(labelX, cx, height - 10);
+            
+            ctx.save();
+            ctx.translate(15, cy);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText(labelY, 0, 0);
+            ctx.restore();
+            
+            // Draw particles!
+            ctx.fillStyle = colorParticle;
+            for (let i = 0; i < N; i++) {
+                if (survival[i] === 0.0) continue;
+                
+                const pxVal = cx + particles[i][idxX] * scaleFactorX;
+                const pyVal = cy - particles[i][idxY] * scaleFactorY; // canvas inversion
+                
+                ctx.beginPath();
+                ctx.arc(pxVal, pyVal, 2.0, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        }
+    </script>
+</body>
+</html>

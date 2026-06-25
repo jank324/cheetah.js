@@ -1,0 +1,14 @@
+{
+  "name": "cheetah-accelerator-js",
+  "version": "0.1.0",
+  "description": "Javascript port of the Cheetah particle accelerator beam dynamics simulation code",
+  "main": "dist/cheetah.js",
+  "type": "module",
+  "scripts": {
+    "build": "node src/bundle.js",
+    "build:demo": "npm run build && node src/inline.js",
+    "test": "node tests/run_tests.js"
+  },
+  "author": "Jan Kaiser, Chenran Xu and Christian Hespe (JS Port by Antigravity)",
+  "license": "GPL-3.0"
+}
