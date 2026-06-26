@@ -363,14 +363,16 @@
             background-color: #050608;
             border-radius: 8px;
             overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             border: 1px solid rgba(255, 255, 255, 0.03);
             position: relative;
         }
 
         canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             display: block;
         }
 
@@ -753,24 +755,28 @@
         let plotMode = 'xy'; // 'xy', 'xpx', 'ypy'
         let selectedScreenName = '';
 
-        // Initialize Application on window load
         window.addEventListener('DOMContentLoaded', () => {
             // Set textarea value default
             document.getElementById('jsonTextarea').value = JSON.stringify(PRESETS.fodo, null, 2);
             
-            // Set up resize handler for canvas
-            const canvas = document.getElementById('scatterCanvas');
-            const resizeCanvas = () => {
-                const rect = canvas.parentElement.getBoundingClientRect();
-                canvas.width = rect.width;
-                canvas.height = rect.height;
-                simulateAndDraw();
-            };
-            window.addEventListener('resize', resizeCanvas);
-            
             // Initial load
             loadPreset();
-            setTimeout(resizeCanvas, 100);
+            
+            // Set up resize observer for canvas to handle responsive sizing dynamically
+            const canvas = document.getElementById('scatterCanvas');
+            const wrapper = document.getElementById('canvasWrapper');
+            const resizeObserver = new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    const width = entry.contentRect.width;
+                    const height = entry.contentRect.height;
+                    if (width > 0 && height > 0) {
+                        canvas.width = width;
+                        canvas.height = height;
+                        simulateAndDraw();
+                    }
+                }
+            });
+            resizeObserver.observe(wrapper);
         });
 
         // Toggle sliding JSON Editor Pane
@@ -1032,14 +1038,15 @@
             const envelopeBeams = splitSeg.get_beams_along_segment(initialParamBeam);
             
             // Track particles through standard (un-split) segment for screen diagnostics and speed
-            const trackBeams = segment.get_beams_along_segment(initialPartBeam);
+            const flatSegment = segment.flattened();
+            const trackBeams = flatSegment.get_beams_along_segment(initialPartBeam);
             
             // Find which beam to show in the Canvas scatter plot
             let activeDiagnosticBeam = trackBeams[0]; // Start
             let activeDiagIndex = 0;
             
             if (selectedScreenName !== 'START') {
-                const flattened = segment.flattened().elements;
+                const flattened = flatSegment.elements;
                 for (let i = 0; i < flattened.length; i++) {
                     if (flattened[i].name === selectedScreenName) {
                         activeDiagnosticBeam = trackBeams[i + 1];
