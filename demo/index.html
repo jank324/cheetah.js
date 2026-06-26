@@ -101,20 +101,37 @@
             font-family: var(--font-mono);
         }
 
-        .header-links a {
+        .header-links {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .header-links a, .header-links button {
             color: var(--text-secondary);
             text-decoration: none;
             font-size: 0.9rem;
             padding: 0.5rem 1rem;
             border-radius: 6px;
             border: 1px solid transparent;
+            background: none;
+            cursor: pointer;
             transition: all 0.2s ease;
+            font-family: var(--font-main);
         }
 
-        .header-links a:hover {
+        .header-links a:hover, .header-links button:hover {
             color: var(--text-main);
             background-color: rgba(255, 255, 255, 0.05);
             border-color: var(--border-color);
+        }
+
+        .header-links .tab-btn.active {
+            color: #ffffff;
+            background-color: rgba(0, 166, 235, 0.15);
+            border-color: rgba(0, 166, 235, 0.3);
+            font-weight: 500;
+            box-shadow: none;
         }
 
         /* Dashboard Container Layout */
@@ -587,7 +604,9 @@
             <span>v0.1.0 (JS Port)</span>
         </div>
         <div class="header-links">
-            <button class="tab-btn active" style="margin-right: 0.5rem;" onclick="toggleJSONEditor()">LatticeJSON Editor</button>
+            <a href="index.html" class="tab-btn active">2D Dashboard</a>
+            <a href="3d.html" class="tab-btn">3D Viewer</a>
+            <button class="tab-btn" style="margin-left: 0.5rem;" onclick="toggleJSONEditor()">LatticeJSON Editor</button>
             <a href="https://github.com/desy-ml/cheetah" target="_blank">Cheetah Python</a>
         </div>
     </header>
