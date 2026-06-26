@@ -1,0 +1,4251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cheetah.js Accelerator Simulation Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Modern CSS Reset & Design System Variables */
+        :root {
+            --bg-color: #08090d;
+            --panel-bg: rgba(17, 18, 25, 0.75);
+            --card-bg: rgba(26, 27, 38, 0.45);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(0, 166, 235, 0.15);
+            
+            --accent-primary: hsl(198, 100%, 46%);      /* DESY Blue (#00A6EB) */
+            --accent-primary-hover: hsl(198, 100%, 55%);
+            --accent-cyan: hsl(190, 95%, 48%);         /* X envelope / beam */
+            --accent-pink: hsl(330, 95%, 60%);         /* Y envelope / beam */
+            --accent-gold: hsl(45, 95%, 55%);          /* Cavity / RF */
+            --accent-green: hsl(150, 85%, 45%);        /* Solenoid / correctors */
+            
+            --text-main: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            
+            --font-main: 'Outfit', sans-serif;
+            --font-mono: 'Source Code Pro', monospace;
+            
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(0, 166, 235, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(242, 142, 0, 0.05) 0%, transparent 40%);
+        }
+
+        header {
+            padding: 1.25rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            backdrop-filter: blur(10px);
+            background-color: rgba(8, 9, 13, 0.5);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-badge {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-cyan));
+            color: #ffffff;
+            font-weight: 700;
+            padding: 0.25rem 0.65rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+        }
+
+        .header-logo h1 {
+            font-size: 1.35rem;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #fff, var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-logo span {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-family: var(--font-mono);
+        }
+
+        .header-links {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .header-links a, .header-links button {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            background: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: var(--font-main);
+        }
+
+        .header-links a:hover, .header-links button:hover {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.05);
+            border-color: var(--border-color);
+        }
+
+        .header-links .tab-btn.active {
+            color: #ffffff;
+            background-color: rgba(0, 166, 235, 0.15);
+            border-color: rgba(0, 166, 235, 0.3);
+            font-weight: 500;
+            box-shadow: none;
+        }
+
+        /* Dashboard Container Layout */
+        .dashboard {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            height: calc(100vh - 72px);
+            overflow: hidden;
+        }
+
+        /* Sidebar Controls Panel */
+        .sidebar {
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            overflow-y: auto;
+            backdrop-filter: blur(15px);
+        }
+
+        .section-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .preset-select {
+            width: 100%;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-family: var(--font-main);
+            font-size: 0.95rem;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .preset-select:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 10px rgba(0, 166, 235, 0.15);
+        }
+
+        .controls-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .control-group {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .control-group:hover {
+            border-color: rgba(255, 255, 255, 0.12);
+            background-color: rgba(26, 27, 38, 0.6);
+        }
+
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .control-name {
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        .control-value {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent-cyan);
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+        }
+
+        .control-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            margin: 0.5rem 0;
+        }
+
+        .control-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--accent-primary);
+            transition: transform 0.1s ease;
+        }
+
+        .control-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .control-limits {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        /* Main Tracking Work Area */
+        .workspace {
+            display: grid;
+            grid-template-rows: 1fr 1fr;
+            overflow: hidden;
+            background-color: rgba(0, 0, 0, 0.15);
+        }
+
+        /* Panels layout */
+        .panel {
+            padding: 1.5rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .panel:last-child {
+            border-bottom: none;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .panel-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .chart-container {
+            flex: 1;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* SVG Envelope Chart Styling */
+        .envelope-svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .envelope-axis {
+            stroke: rgba(255, 255, 255, 0.15);
+            stroke-width: 1;
+            stroke-dasharray: 4 4;
+        }
+
+        .envelope-path-x {
+            fill: none;
+            stroke: var(--accent-cyan);
+            stroke-width: 2.2;
+            filter: drop-shadow(0 0 4px rgba(6, 182, 212, 0.4));
+        }
+
+        .envelope-path-y {
+            fill: none;
+            stroke: var(--accent-pink);
+            stroke-width: 2.2;
+            filter: drop-shadow(0 0 4px rgba(236, 72, 153, 0.4));
+        }
+
+        .envelope-shade-x {
+            fill: rgba(6, 182, 212, 0.05);
+        }
+
+        .envelope-shade-y {
+            fill: rgba(236, 72, 153, 0.05);
+        }
+
+        .lattice-bar {
+            fill: rgba(255, 255, 255, 0.03);
+            stroke: rgba(255, 255, 255, 0.08);
+            stroke-width: 1;
+        }
+
+        /* Lower Panel Split: Scatter Plot + Metrics */
+        .diagnostics-split {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 1.5rem;
+            min-height: 0; /* Important for flex child overflow */
+        }
+
+        .scatter-card {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            position: relative;
+            height: 100%;
+            min-height: 280px; /* Fallback min height */
+        }
+
+        .canvas-wrapper {
+            flex: 1;
+            background-color: #050608;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            position: relative;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .metrics-card {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            overflow-y: auto;
+            height: 100%;
+        }
+
+        .metric-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            padding-bottom: 0.75rem;
+        }
+
+        .metric-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .metric-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 1.4rem;
+            font-weight: 600;
+            font-family: var(--font-mono);
+            color: var(--text-main);
+        }
+
+        .metric-unit {
+            font-size: 0.85rem;
+            font-weight: 400;
+            color: var(--text-secondary);
+            margin-left: 0.25rem;
+        }
+
+        .tab-buttons {
+            display: flex;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            padding: 0.15rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.4rem 0.8rem;
+            font-family: var(--font-main);
+            font-size: 0.85rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            background-color: var(--accent-primary);
+            color: #ffffff;
+            box-shadow: 0 2px 6px rgba(0, 166, 235, 0.3);
+        }
+
+        /* Screen Selector Dropdown */
+        .screen-select {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            font-family: var(--font-main);
+            font-size: 0.85rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        /* Tooltips and overlay styling */
+        .plot-tooltip {
+            position: absolute;
+            background-color: rgba(10, 11, 16, 0.95);
+            border: 1px solid var(--accent-primary);
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            z-index: 100;
+            box-shadow: var(--shadow-md);
+            font-family: var(--font-mono);
+        }
+
+        /* JSON Paste overlay */
+        .json-modal-trigger {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-family: var(--font-main);
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+            text-align: center;
+        }
+
+        .json-modal-trigger:hover {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.05);
+            border-color: var(--accent-primary);
+        }
+
+        .json-editor-pane {
+            display: none;
+            position: fixed;
+            top: 72px;
+            right: 0;
+            bottom: 0;
+            width: 500px;
+            background-color: var(--bg-color);
+            border-left: 1px solid var(--border-color);
+            z-index: 20;
+            padding: 1.5rem;
+            flex-direction: column;
+            gap: 1rem;
+            box-shadow: var(--shadow-lg);
+            backdrop-filter: blur(20px);
+        }
+
+        .json-textarea {
+            flex: 1;
+            background-color: #040507;
+            border: 1px solid var(--border-color);
+            color: #a78bfa;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            padding: 1rem;
+            border-radius: 8px;
+            resize: none;
+            outline: none;
+        }
+
+        .json-textarea:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .json-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-family: var(--font-main);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 166, 235, 0.2);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: rgba(255, 255, 255, 0.06);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-logo">
+            <svg class="desy-logo-svg" viewBox="0 0 100 32" height="28" fill="#ffffff" style="display: block;">
+                <!-- Bold clean DESY letters -->
+                <text x="0" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-weight="900" font-size="28" letter-spacing="-0.5">DESY</text>
+                <!-- Orange dot representing the unknown -->
+                <circle cx="82" cy="23" r="4.5" fill="#F28E00" />
+            </svg>
+            <div style="width: 1px; height: 20px; background-color: var(--border-color); margin: 0 0.5rem;"></div>
+            <h1>Cheetah.js</h1>
+            <span>v0.1.0 (JS Port)</span>
+        </div>
+        <div class="header-links">
+            <a href="index.html" class="tab-btn active">2D Dashboard</a>
+            <a href="3d.html" class="tab-btn">3D Viewer</a>
+            <button class="tab-btn" style="margin-left: 0.5rem;" onclick="toggleJSONEditor()">LatticeJSON Editor</button>
+            <a href="https://github.com/desy-ml/cheetah" target="_blank">Cheetah Python</a>
+        </div>
+    </header>
+
+    <div class="dashboard">
+        <!-- Sidebar: Presets and Slider Controls -->
+        <div class="sidebar">
+            <div>
+                <h3 class="section-title">Lattice Design Presets</h3>
+                <select id="presetSelect" class="preset-select" onchange="loadPreset()">
+                    <option value="fodo">FODO Focussing Cell</option>
+                    <option value="injector">RF Injector Section</option>
+                </select>
+            </div>
+
+            <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <h3 class="section-title">
+                    <span>Element Tuning</span>
+                    <span style="font-family: var(--font-mono); font-size: 0.75rem;" id="tuningCount">0 sliders</span>
+                </h3>
+                <div id="slidersContainer" class="controls-list" style="flex: 1; overflow-y: auto; padding-right: 0.25rem;">
+                    <!-- Sliders dynamically populated -->
+                </div>
+            </div>
+
+            <button class="json-modal-trigger" onclick="toggleJSONEditor()">
+                Paste Custom LatticeJSON...
+            </button>
+        </div>
+
+        <!-- Main Workspace: Envelope Plot and 2D Diagnostics -->
+        <div class="workspace">
+            <!-- Upper Panel: SVG Envelope Chart -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div>
+                        <h2 class="panel-title">Longitudinal Beam Envelope</h2>
+                        <span class="panel-subtitle">Root-mean-square beam sizes (&sigma;<sub>x</sub>, &sigma;<sub>y</sub>) along the beamline</span>
+                    </div>
+                    <div style="display: flex; gap: 1rem; font-size: 0.85rem;">
+                        <span style="color: var(--accent-cyan); display: flex; align-items: center; gap: 0.35rem;">
+                            <span style="width: 12px; height: 3px; background-color: var(--accent-cyan); display: inline-block;"></span>
+                            &sigma;<sub>x</sub> (Horizontal)
+                        </span>
+                        <span style="color: var(--accent-pink); display: flex; align-items: center; gap: 0.35rem;">
+                            <span style="width: 12px; height: 3px; background-color: var(--accent-pink); display: inline-block;"></span>
+                            &sigma;<sub>y</sub> (Vertical)
+                        </span>
+                    </div>
+                </div>
+                <div class="chart-container" id="svgContainer">
+                    <div class="plot-tooltip" id="svgTooltip"></div>
+                    <svg class="envelope-svg" id="envelopeSvg" viewBox="0 0 1000 320" preserveAspectRatio="none">
+                        <!-- Content generated dynamically -->
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Lower Panel: 2D Screen Diagnostics & Metrics -->
+            <div class="panel" style="background-color: rgba(0, 0, 0, 0.08);">
+                <div class="panel-header">
+                    <div>
+                        <h2 class="panel-title">Transverse Diagnostic Spot</h2>
+                        <span class="panel-subtitle">Particle coordinate distribution (x vs y) at diagnostic diagnostic stations</span>
+                    </div>
+                    <div style="display: flex; gap: 0.75rem; align-items: center;">
+                        <label class="metric-label" style="font-size: 0.75rem;">Diagnostic Point:</label>
+                        <select id="screenSelect" class="screen-select" onchange="updateScreenView()">
+                            <!-- Screens dynamically populated -->
+                        </select>
+                        <div class="tab-buttons">
+                            <button id="tabPart" class="tab-btn active" onclick="setPlotMode('xy')">x vs y</button>
+                            <button id="tabXpx" class="tab-btn" onclick="setPlotMode('xpx')">x vs p<sub>x</sub></button>
+                            <button id="tabYpy" class="tab-btn" onclick="setPlotMode('ypy')">y vs p<sub>y</sub></button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diagnostics-split">
+                    <!-- Scatter Plot Card -->
+                    <div class="scatter-card">
+                        <div class="canvas-wrapper" id="canvasWrapper">
+                            <canvas id="scatterCanvas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Metrics/Stats Panel -->
+                    <div class="metrics-card">
+                        <div class="metric-item">
+                            <div class="metric-label">Reference Beam Energy</div>
+                            <div class="metric-value" id="valEnergy">100.0<span class="metric-unit">MeV</span></div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">RMS Size X / Y</div>
+                            <div class="metric-value" style="font-size: 1.15rem;" id="valRms">
+                                <span style="color: var(--accent-cyan);" id="valRmsX">150.0</span> / 
+                                <span style="color: var(--accent-pink);" id="valRmsY">150.0</span>
+                                <span class="metric-unit">&mu;m</span>
+                            </div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Survived Charge</div>
+                            <div class="metric-value" id="valCharge">1.00<span class="metric-unit">nC (100.0%)</span></div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Beam Position (s)</div>
+                            <div class="metric-value" id="valS">0.00<span class="metric-unit">m</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide-in JSON Editor Modal -->
+    <div class="json-editor-pane" id="jsonEditor">
+        <h3 class="section-title">LatticeJSON Editor</h3>
+        <p style="font-size: 0.85rem; color: var(--text-secondary);">
+            Paste a valid Cheetah-compatible LatticeJSON representation below to reload and track custom lattices in real time.
+        </p>
+        <textarea class="json-textarea" id="jsonTextarea" spellcheck="false"></textarea>
+        <div class="json-actions">
+            <button class="btn btn-secondary" onclick="toggleJSONEditor()">Close</button>
+            <button class="btn btn-primary" onclick="loadCustomJSON()">Load & Simulate</button>
+        </div>
+    </div>
+
+    <!-- Load bundled cheetah.js -->
+    <script>
+(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        define([], factory);
+    } else if (typeof module === 'object' && module.exports) {
+        module.exports = factory();
+    } else {
+        root.cheetah = factory();
+    }
+}(typeof self !== 'undefined' ? self : this, function () {
+    'use strict';
+
+        // --- File: math.js ---
+    // math.js - Core math utilities for cheetah.js
+    
+    function zeros(r, c) {
+        const mat = new Array(r);
+        for (let i = 0; i < r; i++) {
+            mat[i] = new Float64Array(c);
+        }
+        return mat;
+    }
+    
+    function identity(n) {
+        const mat = zeros(n, n);
+        for (let i = 0; i < n; i++) {
+            mat[i][i] = 1.0;
+        }
+        return mat;
+    }
+    
+    function transpose(A) {
+        const r = A.length;
+        const c = A[0].length;
+        const B = zeros(c, r);
+        for (let i = 0; i < r; i++) {
+            for (let j = 0; j < c; j++) {
+                B[j][i] = A[i][j];
+            }
+        }
+        return B;
+    }
+    
+    function matmul(A, B) {
+        const rA = A.length;
+        const cA = A[0].length;
+        const rB = B.length;
+        const cB = B[0].length;
+        if (cA !== rB) {
+            throw new Error(`Dimension mismatch in matmul: ${cA} != ${rB}`);
+        }
+        const C = zeros(rA, cB);
+        for (let i = 0; i < rA; i++) {
+            for (let j = 0; j < cB; j++) {
+                let sum = 0.0;
+                for (let k = 0; k < cA; k++) {
+                    sum += A[i][k] * B[k][j];
+                }
+                C[i][j] = sum;
+            }
+        }
+        return C;
+    }
+    
+    function matvec(A, v) {
+        const r = A.length;
+        const c = A[0].length;
+        if (c !== v.length) {
+            throw new Error(`Dimension mismatch in matvec: ${c} != ${v.length}`);
+        }
+        const out = new Float64Array(r);
+        for (let i = 0; i < r; i++) {
+            let sum = 0.0;
+            for (let j = 0; j < c; j++) {
+                sum += A[i][j] * v[j];
+            }
+            out[i] = sum;
+        }
+        return out;
+    }
+    
+    function clone2d(A) {
+        const r = A.length;
+        const c = A[0].length;
+        const B = zeros(r, c);
+        for (let i = 0; i < r; i++) {
+            B[i].set(A[i]);
+        }
+        return B;
+    }
+    
+    // 6x6 Cholesky Decomposition
+    // A = L * L^T. Returns L.
+    function cholesky6(A) {
+        const n = 6;
+        const L = zeros(n, n);
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j <= i; j++) {
+                let sum = 0.0;
+                for (let k = 0; k < j; k++) {
+                    sum += L[i][k] * L[j][k];
+                }
+                if (i === j) {
+                    const val = A[i][i] - sum;
+                    L[i][j] = Math.sqrt(val > 0 ? val : 1e-30); // clamp for numerical stability
+                } else {
+                    L[i][j] = (A[i][j] - sum) / L[j][j];
+                }
+            }
+        }
+        return L;
+    }
+    
+    // Solve L * y = b where L is lower triangular of size n x n
+    function solveTriangularL(L, b) {
+        const n = L.length;
+        const y = new Float64Array(n);
+        for (let i = 0; i < n; i++) {
+            let sum = 0.0;
+            for (let k = 0; k < i; k++) {
+                sum += L[i][k] * y[k];
+            }
+            y[i] = (b[i] - sum) / L[i][i];
+        }
+        return y;
+    }
+    
+    // Solve L^T * y = b where L is lower triangular, so L^T is upper triangular
+    function solveTriangularLT(L, b) {
+        const n = L.length;
+        const y = new Float64Array(n);
+        for (let i = n - 1; i >= 0; i--) {
+            let sum = 0.0;
+            for (let k = i + 1; k < n; k++) {
+                sum += L[k][i] * y[k];
+            }
+            y[i] = (b[i] - sum) / L[i][i];
+        }
+        return y;
+    }
+    
+    // Solve L * Y = B where B is an identity matrix to compute L^{-1}
+    function invertTriangularL(L) {
+        const n = L.length;
+        const inv = zeros(n, n);
+        for (let j = 0; j < n; j++) {
+            const ej = new Float64Array(n);
+            ej[j] = 1.0;
+            const col = solveTriangularL(L, ej);
+            for (let i = 0; i < n; i++) {
+                inv[i][j] = col[i];
+            }
+        }
+        return inv;
+    }
+    
+    // Box-Muller transform for standard normal samples
+    let spareNormal = null;
+    function randn() {
+        if (spareNormal !== null) {
+            const val = spareNormal;
+            spareNormal = null;
+            return val;
+        }
+        let u = 0, v = 0;
+        while(u === 0) u = Math.random(); 
+        while(v === 0) v = Math.random();
+        const r = Math.sqrt(-2.0 * Math.log(u));
+        const theta = 2.0 * Math.PI * v;
+        spareNormal = r * Math.sin(theta);
+        return r * Math.cos(theta);
+    }
+    
+    // Weighted Statistics
+    function weightedMean(values, weights) {
+        let sumVal = 0.0;
+        let sumWeight = 0.0;
+        for (let i = 0; i < values.length; i++) {
+            sumVal += values[i] * weights[i];
+            sumWeight += weights[i];
+        }
+        return sumWeight > 0 ? sumVal / sumWeight : 0.0;
+    }
+    
+    function weightedVariance(values, weights, mean) {
+        let sumWeight = 0.0;
+        let sumSquareWeight = 0.0;
+        for (let i = 0; i < weights.length; i++) {
+            sumWeight += weights[i];
+            sumSquareWeight += weights[i] * weights[i];
+        }
+        if (sumWeight <= 0) return 0.0;
+        const correctionFactor = sumWeight - sumSquareWeight / sumWeight;
+        if (correctionFactor <= 0) return 0.0;
+    
+        let sumDiffSq = 0.0;
+        for (let i = 0; i < values.length; i++) {
+            const diff = values[i] - mean;
+            sumDiffSq += weights[i] * diff * diff;
+        }
+        return sumDiffSq / correctionFactor;
+    }
+    
+    function weightedStd(values, weights, mean) {
+        return Math.sqrt(weightedVariance(values, weights, mean));
+    }
+    
+    function weightedCovariance(x, y, weights, meanX, meanY) {
+        let sumWeight = 0.0;
+        let sumSquareWeight = 0.0;
+        for (let i = 0; i < weights.length; i++) {
+            sumWeight += weights[i];
+            sumSquareWeight += weights[i] * weights[i];
+        }
+        if (sumWeight <= 0) return 0.0;
+        const correctionFactor = sumWeight - sumSquareWeight / sumWeight;
+        if (correctionFactor <= 0) return 0.0;
+    
+        let sumDiffProduct = 0.0;
+        for (let i = 0; i < x.length; i++) {
+            sumDiffProduct += weights[i] * (x[i] - meanX) * (y[i] - meanY);
+        }
+        return sumDiffProduct / correctionFactor;
+    }
+    
+    // Compute 6x6 covariance matrix of particles (N x 7, only first 6 columns used)
+    function weightedCovarianceMatrix6(particles, weights) {
+        const N = particles.length;
+        const means = new Float64Array(6);
+        const sumW = weights.reduce((a, b) => a + b, 0.0);
+        
+        for (let c = 0; c < 6; c++) {
+            let sumVal = 0.0;
+            for (let i = 0; i < N; i++) {
+                sumVal += particles[i][c] * weights[i];
+            }
+            means[c] = sumW > 0 ? sumVal / sumW : 0.0;
+        }
+    
+        let sumSquareW = 0.0;
+        for (let i = 0; i < N; i++) {
+            sumSquareW += weights[i] * weights[i];
+        }
+        const correctionFactor = sumW - sumSquareW / sumW;
+    
+        const cov = zeros(6, 6);
+        if (correctionFactor <= 0) return cov;
+    
+        for (let r = 0; r < 6; r++) {
+            for (let c = r; c < 6; c++) {
+                let sumDiffProduct = 0.0;
+                for (let i = 0; i < N; i++) {
+                    sumDiffProduct += weights[i] * (particles[i][r] - means[r]) * (particles[i][c] - means[c]);
+                }
+                const val = sumDiffProduct / correctionFactor;
+                cov[r][c] = val;
+                cov[c][r] = val;
+            }
+        }
+        return cov;
+    }
+    
+    // Match distribution moments exactly
+    function matchDistributionMoments(samples, targetMu, targetCov, weights = null) {
+        const N = samples.length;
+        if (N === 0) return samples;
+        
+        if (!weights) {
+            weights = new Float64Array(N).fill(1.0);
+        }
+        const sumW = weights.reduce((a, b) => a + b, 0.0);
+    
+        // Compute sample mean and covariance
+        const sampleMu = new Float64Array(6);
+        for (let c = 0; c < 6; c++) {
+            let sumVal = 0.0;
+            for (let i = 0; i < N; i++) {
+                sumVal += samples[i][c] * weights[i];
+            }
+            sampleMu[c] = sumW > 0 ? sumVal / sumW : 0.0;
+        }
+    
+        const sampleCov = weightedCovarianceMatrix6(samples, weights);
+        
+        // Cholesky decomposition of sample covariance
+        const L_sample = cholesky6(sampleCov);
+        // Invert L_sample to whiten the samples
+        const L_sample_inv = invertTriangularL(L_sample);
+    
+        // Cholesky decomposition of target covariance
+        // targetCov is 7x7 in parameter beam, but we only need 6x6 here
+        const targetCov6 = zeros(6, 6);
+        for (let i = 0; i < 6; i++) {
+            for (let j = 0; j < 6; j++) {
+                targetCov6[i][j] = targetCov[i][j];
+            }
+        }
+        const L_target = cholesky6(targetCov6);
+    
+        // Whiten samples and map to target distribution:
+        // x_new = L_target * L_sample_inv * (x - sampleMu) + targetMu
+        const transform = matmul(L_target, L_sample_inv);
+    
+        const matched = new Array(N);
+        for (let i = 0; i < N; i++) {
+            const x_centered = new Float64Array(6);
+            for (let c = 0; c < 6; c++) {
+                x_centered[c] = samples[i][c] - sampleMu[c];
+            }
+            const x_transformed = matvec(transform, x_centered);
+            const p_new = new Float64Array(7);
+            for (let c = 0; c < 6; c++) {
+                p_new[c] = x_transformed[c] + targetMu[c];
+            }
+            p_new[6] = 1.0; // 7th coordinate is 1
+            matched[i] = p_new;
+        }
+        return matched;
+    }
+    
+    // ----------------------------------------------------
+    // Autograd forward-only helper functions
+    // ----------------------------------------------------
+    
+    function si(x) {
+        if (x === 0.0) return 1.0;
+        if (x > 0.0) {
+            const y = Math.sqrt(x);
+            return Math.sin(y) / y;
+        } else {
+            const y = Math.sqrt(-x);
+            return Math.sinh(y) / y;
+        }
+    }
+    
+    function cx_helper(x) {
+        if (x === 0.0) return 1.0;
+        if (x > 0.0) return Math.cos(Math.sqrt(x));
+        return Math.cosh(Math.sqrt(-x));
+    }
+    
+    function log1pdiv(x) {
+        if (Math.abs(x) < 1e-12) return 1.0;
+        return Math.log1p(x) / x;
+    }
+    
+    function si1mdiv(x) {
+        if (Math.abs(x) < 1e-12) return 1.0 / 6.0;
+        const sx = si(x);
+        return (1.0 - sx) / x;
+    }
+    
+    function sicos1mdiv(x) {
+        if (Math.abs(x) < 1e-12) return 1.0 / 6.0;
+        const sx = si(x);
+        const cx = cx_helper(x);
+        return (1.0 - sx * cx) / x;
+    }
+    
+    function sipsicos3mdiv(x) {
+        if (Math.abs(x) < 1e-12) return 0.0;
+        const sx = si(x);
+        const cx = cx_helper(x);
+        return (3.0 - 4.0 * sx + sx * cx) / (2.0 * x);
+    }
+    
+    function cossqrtmcosdivdiff(a, b) {
+        if (Math.abs(a - b) < 1e-12) {
+            return 0.5 * si(a);
+        }
+        const ca = cx_helper(a);
+        const cb = cx_helper(b);
+        return (cb - ca) / (a - b);
+    }
+    
+    function simsidivdiff(a, b) {
+        if (Math.abs(a - b) < 1e-12) {
+            if (Math.abs(b) < 1e-12) return 1.0 / 6.0;
+            const sb = si(b);
+            const cb = cx_helper(b);
+            return 0.5 * (sb - cb) / b;
+        }
+        const sa = si(a);
+        const sb = si(b);
+        return (sa - sb) / (b - a);
+    }
+    
+    function si2msi2divdiff(a, b) {
+        if (Math.abs(a - b) < 1e-12) {
+            if (Math.abs(b) < 1e-12) return 1.0 / 3.0;
+            const sb = si(b);
+            const cb = cx_helper(b);
+            return (1.0 - cb * cb - b * sb * cb) / (b * b);
+        }
+        const sa = si(a);
+        const sb = si(b);
+        return (sb * sb - sa * sa) / (a - b);
+    }
+    
+    function sqrta2minusbdiva(a, b) {
+        if (Math.abs(b) < 1e-12) {
+            return 1.0 / (2.0 * a);
+        }
+        return (Math.sqrt(a * a + b) - a) / b;
+    }
+    
+    // --- File: species.js ---
+    // species.js - Named particle species
+    
+    const electron_mass_eV = 510998.95;
+    const proton_mass_eV = 938272088.16;
+    const deuteron_mass_eV = 1875612942.57;
+    const elementary_charge = 1.602176634e-19;
+    const eV_to_kg = 1.7826619216278975e-36;
+    
+    class Species {
+        static known = {
+            "electron": { num_elementary_charges: -1, mass_eV: electron_mass_eV },
+            "positron": { num_elementary_charges: 1, mass_eV: electron_mass_eV },
+            "proton": { num_elementary_charges: 1, mass_eV: proton_mass_eV },
+            "antiproton": { num_elementary_charges: -1, mass_eV: proton_mass_eV },
+            "deuteron": { num_elementary_charges: 1, mass_eV: deuteron_mass_eV },
+        };
+    
+        constructor(name, num_elementary_charges = null, mass_eV = null) {
+            this.name = name;
+            if (Species.known[name]) {
+                this.num_elementary_charges = Species.known[name].num_elementary_charges;
+                this.mass_eV = Species.known[name].mass_eV;
+            } else {
+                if (num_elementary_charges === null || mass_eV === null) {
+                    throw new Error(`Custom species '${name}' must have charge and mass provided.`);
+                }
+                this.num_elementary_charges = num_elementary_charges;
+                this.mass_eV = mass_eV;
+            }
+        }
+    
+        get mass_kg() {
+            return this.mass_eV * eV_to_kg;
+        }
+    
+        get charge_coulomb() {
+            return this.num_elementary_charges * elementary_charge;
+        }
+    
+        clone() {
+            return new Species(this.name, this.num_elementary_charges, this.mass_eV);
+        }
+    }
+    
+    // --- File: beam.js ---
+    // beam.js - Base class for beams
+    
+    class Beam {
+        constructor(energy, total_charge, s, species) {
+            this.energy = energy; // reference energy in eV
+            this.total_charge = total_charge; // total charge in Coulombs
+            this.s = s; // position along beamline in meters
+            this.species = species; // Species object
+        }
+    
+        get relativistic_gamma() {
+            return this.energy / this.species.mass_eV;
+        }
+    
+        get relativistic_beta() {
+            const gamma = this.relativistic_gamma;
+            if (gamma <= 1.0) return 0.0;
+            return Math.sqrt(1.0 - 1.0 / (gamma * gamma));
+        }
+    
+        get p0c() {
+            return this.relativistic_beta * this.relativistic_gamma * this.species.mass_eV;
+        }
+    
+        // Abstract properties to be implemented by subclasses
+        get mu_x() { throw new Error("Not implemented"); }
+        get sigma_x() { throw new Error("Not implemented"); }
+        get mu_px() { throw new Error("Not implemented"); }
+        get sigma_px() { throw new Error("Not implemented"); }
+        get mu_y() { throw new Error("Not implemented"); }
+        get sigma_y() { throw new Error("Not implemented"); }
+        get mu_py() { throw new Error("Not implemented"); }
+        get sigma_py() { throw new Error("Not implemented"); }
+        get mu_tau() { throw new Error("Not implemented"); }
+        get sigma_tau() { throw new Error("Not implemented"); }
+        get mu_p() { throw new Error("Not implemented"); }
+        get sigma_p() { throw new Error("Not implemented"); }
+    
+        get cov_xpx() { throw new Error("Not implemented"); }
+        get cov_ypy() { throw new Error("Not implemented"); }
+        get cov_taup() { throw new Error("Not implemented"); }
+        get cov_xp() { throw new Error("Not implemented"); }
+        get cov_pxp() { throw new Error("Not implemented"); }
+        get cov_yp() { throw new Error("Not implemented"); }
+        get cov_pyp() { throw new Error("Not implemented"); }
+    
+        get projected_emittance_x() {
+            const sx = this.sigma_x;
+            const spx = this.sigma_px;
+            const cxpx = this.cov_xpx;
+            const val = sx * sx * spx * spx - cxpx * cxpx;
+            return Math.sqrt(val > 0 ? val : 0.0);
+        }
+    
+        get emittance_x() {
+            const sx2 = this.sigma_x * this.sigma_x;
+            const spx2 = this.sigma_px * this.sigma_px;
+            const sp2 = this.sigma_p * this.sigma_p;
+            const cxp = this.cov_xp;
+            const cpxp = this.cov_pxp;
+            const cxpx = this.cov_xpx;
+    
+            if (sp2 <= 0.0) {
+                const val = sx2 * spx2 - cxpx * cxpx;
+                return Math.sqrt(val > 0 ? val : 1e-30);
+            }
+    
+            const term1 = sx2 - (cxp * cxp) / sp2;
+            const term2 = spx2 - (cpxp * cpxp) / sp2;
+            const term3 = cxpx - (cxp * cpxp) / sp2; // Wait, let's verify if Python has cxp * cpxp or cxp * cxp.
+            // Python: self.cov_xpx - self.cov_xp * self.cov_pxp / self.sigma_p.square()
+            // Yes, term3 is: cxpx - (cxp * cpxp) / sp2!
+            const term3_act = cxpx - (cxp * cpxp) / sp2;
+    
+            const val = term1 * term2 - term3_act * term3_act;
+            return Math.sqrt(val > 0 ? val : 1e-30);
+        }
+    
+        get normalized_emittance_x() {
+            return this.emittance_x * this.relativistic_beta * this.relativistic_gamma;
+        }
+    
+        get beta_x() {
+            const sp2 = this.sigma_p * this.sigma_p;
+            const term = sp2 > 0 ? (this.cov_xp * this.cov_xp) / sp2 : 0.0;
+            return (this.sigma_x * this.sigma_x - term) / this.emittance_x;
+        }
+    
+        get alpha_x() {
+            const sp2 = this.sigma_p * this.sigma_p;
+            const term = sp2 > 0 ? (this.cov_xp * this.cov_pxp) / sp2 : 0.0;
+            return -(this.cov_xpx - term) / this.emittance_x;
+        }
+    
+        get projected_emittance_y() {
+            const sy = this.sigma_y;
+            const spy = this.sigma_py;
+            const cypy = this.cov_ypy;
+            const val = sy * sy * spy * spy - cypy * cypy;
+            return Math.sqrt(val > 0 ? val : 0.0);
+        }
+    
+        get emittance_y() {
+            const sy2 = this.sigma_y * this.sigma_y;
+            const spy2 = this.sigma_py * this.sigma_py;
+            const sp2 = this.sigma_p * this.sigma_p;
+            const cyp = this.cov_yp;
+            const cpyp = this.cov_pyp;
+            const cypy = this.cov_ypy;
+    
+            if (sp2 <= 0.0) {
+                const val = sy2 * spy2 - cypy * cypy;
+                return Math.sqrt(val > 0 ? val : 1e-30);
+            }
+    
+            const term1 = sy2 - (cyp * cyp) / sp2;
+            const term2 = spy2 - (cpyp * cpyp) / sp2;
+            const term3 = cypy - (cyp * cpyp) / sp2;
+    
+            const val = term1 * term2 - term3 * term3;
+            return Math.sqrt(val > 0 ? val : 1e-30);
+        }
+    
+        get normalized_emittance_y() {
+            return this.emittance_y * this.relativistic_beta * this.relativistic_gamma;
+        }
+    
+        get beta_y() {
+            const sp2 = this.sigma_p * this.sigma_p;
+            const term = sp2 > 0 ? (this.cov_yp * this.cov_yp) / sp2 : 0.0;
+            return (this.sigma_y * this.sigma_y - term) / this.emittance_y;
+        }
+    
+        get alpha_y() {
+            const sp2 = this.sigma_p * this.sigma_p;
+            const term = sp2 > 0 ? (this.cov_yp * this.cov_pyp) / sp2 : 0.0;
+            return -(this.cov_ypy - term) / this.emittance_y;
+        }
+    
+        get dispersion_x() {
+            const sp2 = this.sigma_p * this.sigma_p;
+            return sp2 > 0 ? this.cov_xp / sp2 : 0.0;
+        }
+    
+        get dispersion_px() {
+            const sp2 = this.sigma_p * this.sigma_p;
+            return sp2 > 0 ? this.cov_pxp / sp2 : 0.0;
+        }
+    
+        get dispersion_y() {
+            const sp2 = this.sigma_p * this.sigma_p;
+            return sp2 > 0 ? this.cov_yp / sp2 : 0.0;
+        }
+    
+        get dispersion_py() {
+            const sp2 = this.sigma_p * this.sigma_p;
+            return sp2 > 0 ? this.cov_pyp / sp2 : 0.0;
+        }
+    }
+    
+    // --- File: parameter_beam.js ---
+    // parameter_beam.js - Beam represented by statistical parameters
+    
+    
+    class ParameterBeam extends Beam {
+        constructor(mu, cov, energy, total_charge = 0.0, s = 0.0, species = null) {
+            const activeSpecies = species || new Species("electron");
+            super(energy, total_charge, s, activeSpecies);
+            this.mu = mu; // Float64Array of size 7
+            this.cov = cov; // Array of Float64Arrays of size 7x7
+        }
+    
+        // Index properties
+        get mu_x() { return this.mu[0]; }
+        get sigma_x() { return Math.sqrt(Math.max(0.0, this.cov[0][0])); }
+        get mu_px() { return this.mu[1]; }
+        get sigma_px() { return Math.sqrt(Math.max(0.0, this.cov[1][1])); }
+        get mu_y() { return this.mu[2]; }
+        get sigma_y() { return Math.sqrt(Math.max(0.0, this.cov[2][2])); }
+        get mu_py() { return this.mu[3]; }
+        get sigma_py() { return Math.sqrt(Math.max(0.0, this.cov[3][3])); }
+        get mu_tau() { return this.mu[4]; }
+        get sigma_tau() { return Math.sqrt(Math.max(0.0, this.cov[4][4])); }
+        get mu_p() { return this.mu[5]; }
+        get sigma_p() { return Math.sqrt(Math.max(0.0, this.cov[5][5])); }
+    
+        get cov_xpx() { return this.cov[0][1]; }
+        get cov_ypy() { return this.cov[2][3]; }
+        get cov_taup() { return this.cov[4][5]; }
+        get cov_xp() { return this.cov[0][5]; }
+        get cov_pxp() { return this.cov[1][5]; }
+        get cov_yp() { return this.cov[2][5]; }
+        get cov_pyp() { return this.cov[3][5]; }
+    
+        clone() {
+            const newMu = new Float64Array(7);
+            newMu.set(this.mu);
+            const newCov = zeros(7, 7);
+            for (let i = 0; i < 7; i++) {
+                newCov[i].set(this.cov[i]);
+            }
+            return new ParameterBeam(
+                newMu,
+                newCov,
+                this.energy,
+                this.total_charge,
+                this.s,
+                this.species.clone()
+            );
+        }
+    
+        static fromParameters({
+            mu_x = 0.0, mu_px = 0.0, mu_y = 0.0, mu_py = 0.0, mu_tau = 0.0, mu_p = 0.0,
+            sigma_x = 175e-6, sigma_px = 4e-6, sigma_y = 175e-6, sigma_py = 4e-6,
+            sigma_tau = 8e-6, sigma_p = 2e-3,
+            cov_xpx = 0.0, cov_ypy = 0.0, cov_taup = 0.0,
+            cov_xp = 0.0, cov_pxp = 0.0, cov_yp = 0.0, cov_pyp = 0.0,
+            energy = 1e8, total_charge = 0.0, s = 0.0, species = null
+        } = {}) {
+            const mu = new Float64Array([mu_x, mu_px, mu_y, mu_py, mu_tau, mu_p, 1.0]);
+            const cov = zeros(7, 7);
+            
+            cov[0][0] = sigma_x * sigma_x;
+            cov[0][1] = cov_xpx;
+            cov[1][0] = cov_xpx;
+            cov[1][1] = sigma_px * sigma_px;
+            
+            cov[2][2] = sigma_y * sigma_y;
+            cov[2][3] = cov_ypy;
+            cov[3][2] = cov_ypy;
+            cov[3][3] = sigma_py * sigma_py;
+            
+            cov[4][4] = sigma_tau * sigma_tau;
+            cov[4][5] = cov_taup;
+            cov[5][4] = cov_taup;
+            cov[5][5] = sigma_p * sigma_p;
+            
+            cov[0][5] = cov_xp;
+            cov[5][0] = cov_xp;
+            cov[1][5] = cov_pxp;
+            cov[5][1] = cov_pxp;
+            cov[2][5] = cov_yp;
+            cov[5][2] = cov_yp;
+            cov[3][5] = cov_pyp;
+            cov[5][3] = cov_pyp;
+    
+            return new ParameterBeam(mu, cov, energy, total_charge, s, species);
+        }
+    
+        static fromTwiss({
+            beta_x = 1.0, alpha_x = 0.0, emittance_x = 7.1971891e-13,
+            beta_y = 1.0, alpha_y = 0.0, emittance_y = 7.1971891e-13,
+            sigma_tau = 1e-6, sigma_p = 1e-6, cov_taup = 0.0,
+            dispersion_x = 0.0, dispersion_px = 0.0, dispersion_y = 0.0, dispersion_py = 0.0,
+            energy = 1e8, total_charge = 0.0, s = 0.0, species = null
+        } = {}) {
+            if (beta_x <= 0) throw new Error("beta_x must be greater than 0");
+            if (beta_y <= 0) throw new Error("beta_y must be greater than 0");
+    
+            const sigma_x = Math.sqrt(emittance_x * beta_x + dispersion_x * dispersion_x * sigma_p * sigma_p);
+            const sigma_px = Math.sqrt(emittance_x * (1 + alpha_x * alpha_x) / beta_x + dispersion_px * dispersion_px * sigma_p * sigma_p);
+            const sigma_y = Math.sqrt(emittance_y * beta_y + dispersion_y * dispersion_y * sigma_p * sigma_p);
+            const sigma_py = Math.sqrt(emittance_y * (1 + alpha_y * alpha_y) / beta_y + dispersion_py * dispersion_py * sigma_p * sigma_p);
+            
+            const cov_xpx = -emittance_x * alpha_x + dispersion_x * dispersion_px * sigma_p * sigma_p;
+            const cov_ypy = -emittance_y * alpha_y + dispersion_y * dispersion_py * sigma_p * sigma_p;
+            
+            const cov_xp = dispersion_x * sigma_p * sigma_p;
+            const cov_pxp = dispersion_px * sigma_p * sigma_p;
+            const cov_yp = dispersion_y * sigma_p * sigma_p;
+            const cov_pyp = dispersion_py * sigma_p * sigma_p;
+    
+            return ParameterBeam.fromParameters({
+                sigma_x, sigma_px, sigma_y, sigma_py, sigma_tau, sigma_p,
+                cov_xpx, cov_ypy, cov_taup, cov_xp, cov_pxp, cov_yp, cov_pyp,
+                energy, total_charge, s, species
+            });
+        }
+    }
+    
+    // --- File: particle_beam.js ---
+    // particle_beam.js - Particle beam class simulating individual macroparticles
+    
+    
+    class ParticleBeam extends Beam {
+        constructor(particles, energy, particle_charges = null, survival_probabilities = null, s = 0.0, species = null) {
+            const activeSpecies = species || new Species("electron");
+            const N = particles.length;
+            const charges = particle_charges || new Float64Array(N).fill(activeSpecies.charge_coulomb);
+            const probs = survival_probabilities || new Float64Array(N).fill(1.0);
+            
+            // Compute total charge: sum of charges * survival probabilities
+            let sumQ = 0.0;
+            for (let i = 0; i < N; i++) {
+                sumQ += charges[i] * probs[i];
+            }
+            
+            super(energy, sumQ, s, activeSpecies);
+            this.particles = particles; // Array of Float64Arrays [N][7]
+            this.particle_charges = charges; // Float64Array [N]
+            this.survival_probabilities = probs; // Float64Array [N]
+        }
+    
+        // Coordinates helpers
+        get x() {
+            const out = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) out[i] = this.particles[i][0];
+            return out;
+        }
+        get px() {
+            const out = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) out[i] = this.particles[i][1];
+            return out;
+        }
+        get y() {
+            const out = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) out[i] = this.particles[i][2];
+            return out;
+        }
+        get py() {
+            const out = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) out[i] = this.particles[i][3];
+            return out;
+        }
+        get tau() {
+            const out = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) out[i] = this.particles[i][4];
+            return out;
+        }
+        get p() {
+            const out = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) out[i] = this.particles[i][5];
+            return out;
+        }
+    
+        // Statistical getters
+        get mu_x() {
+            const vals = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) vals[i] = this.particles[i][0];
+            return weightedMean(vals, this.survival_probabilities);
+        }
+        get sigma_x() {
+            const vals = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) vals[i] = this.particles[i][0];
+            return weightedStd(vals, this.survival_probabilities, this.mu_x);
+        }
+    
+        get mu_px() {
+            const vals = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) vals[i] = this.particles[i][1];
+            return weightedMean(vals, this.survival_probabilities);
+        }
+        get sigma_px() {
+            const vals = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) vals[i] = this.particles[i][1];
+            return weightedStd(vals, this.survival_probabilities, this.mu_px);
+        }
+    
+        get mu_y() {
+            const vals = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) vals[i] = this.particles[i][2];
+            return weightedMean(vals, this.survival_probabilities);
+        }
+        get sigma_y() {
+            const vals = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) vals[i] = this.particles[i][2];
+            return weightedStd(vals, this.survival_probabilities, this.mu_y);
+        }
+    
+        get mu_py() {
+            const vals = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) vals[i] = this.particles[i][3];
+            return weightedMean(vals, this.survival_probabilities);
+        }
+        get sigma_py() {
+            const vals = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) vals[i] = this.particles[i][3];
+            return weightedStd(vals, this.survival_probabilities, this.mu_py);
+        }
+    
+        get mu_tau() {
+            const vals = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) vals[i] = this.particles[i][4];
+            return weightedMean(vals, this.survival_probabilities);
+        }
+        get sigma_tau() {
+            const vals = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) vals[i] = this.particles[i][4];
+            return weightedStd(vals, this.survival_probabilities, this.mu_tau);
+        }
+    
+        get mu_p() {
+            const vals = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) vals[i] = this.particles[i][5];
+            return weightedMean(vals, this.survival_probabilities);
+        }
+        get sigma_p() {
+            const vals = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) vals[i] = this.particles[i][5];
+            return weightedStd(vals, this.survival_probabilities, this.mu_p);
+        }
+    
+        // Covariances
+        get cov_xpx() {
+            const xs = new Float64Array(this.particles.length);
+            const pxs = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) {
+                xs[i] = this.particles[i][0];
+                pxs[i] = this.particles[i][1];
+            }
+            return weightedCovariance(xs, pxs, this.survival_probabilities, this.mu_x, this.mu_px);
+        }
+        get cov_ypy() {
+            const ys = new Float64Array(this.particles.length);
+            const pys = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) {
+                ys[i] = this.particles[i][2];
+                pys[i] = this.particles[i][3];
+            }
+            return weightedCovariance(ys, pys, this.survival_probabilities, this.mu_y, this.mu_py);
+        }
+        get cov_taup() {
+            const taus = new Float64Array(this.particles.length);
+            const ps = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) {
+                taus[i] = this.particles[i][4];
+                ps[i] = this.particles[i][5];
+            }
+            return weightedCovariance(taus, ps, this.survival_probabilities, this.mu_tau, this.mu_p);
+        }
+        get cov_xp() {
+            const xs = new Float64Array(this.particles.length);
+            const ps = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) {
+                xs[i] = this.particles[i][0];
+                ps[i] = this.particles[i][5];
+            }
+            return weightedCovariance(xs, ps, this.survival_probabilities, this.mu_x, this.mu_p);
+        }
+        get cov_pxp() {
+            const pxs = new Float64Array(this.particles.length);
+            const ps = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) {
+                pxs[i] = this.particles[i][1];
+                ps[i] = this.particles[i][5];
+            }
+            return weightedCovariance(pxs, ps, this.survival_probabilities, this.mu_px, this.mu_p);
+        }
+        get cov_yp() {
+            const ys = new Float64Array(this.particles.length);
+            const ps = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) {
+                ys[i] = this.particles[i][2];
+                ps[i] = this.particles[i][5];
+            }
+            return weightedCovariance(ys, ps, this.survival_probabilities, this.mu_y, this.mu_p);
+        }
+        get cov_pyp() {
+            const pys = new Float64Array(this.particles.length);
+            const ps = new Float64Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) {
+                pys[i] = this.particles[i][3];
+                ps[i] = this.particles[i][5];
+            }
+            return weightedCovariance(pys, ps, this.survival_probabilities, this.mu_py, this.mu_p);
+        }
+    
+        clone() {
+            const newParticles = new Array(this.particles.length);
+            for (let i = 0; i < this.particles.length; i++) {
+                newParticles[i] = new Float64Array(7);
+                newParticles[i].set(this.particles[i]);
+            }
+            const newCharges = new Float64Array(this.particle_charges.length);
+            newCharges.set(this.particle_charges);
+            const newProbs = new Float64Array(this.survival_probabilities.length);
+            newProbs.set(this.survival_probabilities);
+            return new ParticleBeam(
+                newParticles,
+                this.energy,
+                newCharges,
+                newProbs,
+                this.s,
+                this.species.clone()
+            );
+        }
+    
+        static fromDistribution(mu, cov, num_particles = 100000, energy = 1e8, total_charge = null, s = 0.0, species = null) {
+            const activeSpecies = species || new Species("electron");
+            const actualCharge = total_charge !== null ? total_charge : activeSpecies.charge_coulomb * num_particles;
+    
+            // Sample standard normal in 6D
+            const samples = new Array(num_particles);
+            for (let i = 0; i < num_particles; i++) {
+                const p = new Float64Array(7);
+                for (let c = 0; c < 6; c++) {
+                    p[c] = randn();
+                }
+                p[6] = 1.0;
+                samples[i] = p;
+            }
+    
+            // Target mu 6D
+            const targetMu = new Float64Array(6);
+            for (let c = 0; c < 6; c++) targetMu[c] = mu[c];
+    
+            // Match distribution moments exactly
+            const matched = matchDistributionMoments(samples, targetMu, cov);
+    
+            const charges = new Float64Array(num_particles).fill(actualCharge / num_particles);
+            const probs = new Float64Array(num_particles).fill(1.0);
+    
+            return new ParticleBeam(matched, energy, charges, probs, s, activeSpecies);
+        }
+    
+        static fromParameters({
+            num_particles = 100000,
+            mu_x = 0.0, mu_px = 0.0, mu_y = 0.0, mu_py = 0.0, mu_tau = 0.0, mu_p = 0.0,
+            sigma_x = 175e-6, sigma_px = 4e-6, sigma_y = 175e-6, sigma_py = 4e-6,
+            sigma_tau = 8e-6, sigma_p = 2e-3,
+            cov_xpx = 0.0, cov_ypy = 0.0, cov_taup = 0.0,
+            cov_xp = 0.0, cov_pxp = 0.0, cov_yp = 0.0, cov_pyp = 0.0,
+            energy = 1e8, total_charge = null, s = 0.0, species = null
+        } = {}) {
+            const mu = new Float64Array([mu_x, mu_px, mu_y, mu_py, mu_tau, mu_p, 1.0]);
+            const cov = zeros(7, 7);
+    
+            cov[0][0] = sigma_x * sigma_x;
+            cov[0][1] = cov_xpx;
+            cov[1][0] = cov_xpx;
+            cov[1][1] = sigma_px * sigma_px;
+            
+            cov[2][2] = sigma_y * sigma_y;
+            cov[2][3] = cov_ypy;
+            cov[3][2] = cov_ypy;
+            cov[3][3] = sigma_py * sigma_py;
+            
+            cov[4][4] = sigma_tau * sigma_tau;
+            cov[4][5] = cov_taup;
+            cov[5][4] = cov_taup;
+            cov[5][5] = sigma_p * sigma_p;
+            
+            cov[0][5] = cov_xp;
+            cov[5][0] = cov_xp;
+            cov[1][5] = cov_pxp;
+            cov[5][1] = cov_pxp;
+            cov[2][5] = cov_yp;
+            cov[5][2] = cov_yp;
+            cov[3][5] = cov_pyp;
+            cov[5][3] = cov_pyp;
+    
+            return ParticleBeam.fromDistribution(mu, cov, num_particles, energy, total_charge, s, species);
+        }
+    
+        static fromTwiss({
+            num_particles = 100000,
+            beta_x = 1.0, alpha_x = 0.0, emittance_x = 7.1971891e-13,
+            beta_y = 1.0, alpha_y = 0.0, emittance_y = 7.1971891e-13,
+            sigma_tau = 1e-6, sigma_p = 1e-6, cov_taup = 0.0,
+            dispersion_x = 0.0, dispersion_px = 0.0, dispersion_y = 0.0, dispersion_py = 0.0,
+            energy = 1e8, total_charge = null, s = 0.0, species = null
+        } = {}) {
+            if (beta_x <= 0) throw new Error("beta_x must be greater than 0");
+            if (beta_y <= 0) throw new Error("beta_y must be greater than 0");
+    
+            const sigma_x = Math.sqrt(emittance_x * beta_x + dispersion_x * dispersion_x * sigma_p * sigma_p);
+            const sigma_px = Math.sqrt(emittance_x * (1 + alpha_x * alpha_x) / beta_x + dispersion_px * dispersion_px * sigma_p * sigma_p);
+            const sigma_y = Math.sqrt(emittance_y * beta_y + dispersion_y * dispersion_y * sigma_p * sigma_p);
+            const sigma_py = Math.sqrt(emittance_y * (1 + alpha_y * alpha_y) / beta_y + dispersion_py * dispersion_py * sigma_p * sigma_p);
+            
+            const cov_xpx = -emittance_x * alpha_x + dispersion_x * dispersion_px * sigma_p * sigma_p;
+            const cov_ypy = -emittance_y * alpha_y + dispersion_y * dispersion_py * sigma_p * sigma_p;
+            
+            const cov_xp = dispersion_x * sigma_p * sigma_p;
+            const cov_pxp = dispersion_px * sigma_p * sigma_p;
+            const cov_yp = dispersion_y * sigma_p * sigma_p;
+            const cov_pyp = dispersion_py * sigma_p * sigma_p;
+    
+            return ParticleBeam.fromParameters({
+                num_particles,
+                sigma_x, sigma_px, sigma_y, sigma_py, sigma_tau, sigma_p,
+                cov_xpx, cov_ypy, cov_taup, cov_xp, cov_pxp, cov_yp, cov_pyp,
+                energy, total_charge, s, species
+            });
+        }
+    }
+    
+    // --- File: element.js ---
+    // element.js - Base class for lattice elements
+    
+    
+    class Element {
+        constructor(name = null, length = 0.0) {
+            this.name = name || `element_${Math.random().toString(36).substr(2, 9)}`;
+            this._length = length;
+            this._is_active = true;
+        }
+    
+        get length() {
+            return this._length;
+        }
+    
+        set length(val) {
+            this._length = val;
+        }
+    
+        first_order_transfer_map(energy, species) {
+            throw new Error("first_order_transfer_map not implemented");
+        }
+    
+        second_order_transfer_map(energy, species) {
+            throw new Error("second_order_transfer_map not implemented");
+        }
+    
+        track(incoming) {
+            return this._trackFirstOrder(incoming);
+        }
+    
+        _trackFirstOrder(incoming) {
+            const tm = this.first_order_transfer_map(incoming.energy, incoming.species);
+            const newS = incoming.s + this.length;
+            if (incoming instanceof ParameterBeam) {
+                const newMu = matvec(tm, incoming.mu);
+                const newCov = matmul(matmul(tm, incoming.cov), transpose(tm));
+                return new ParameterBeam(
+                    newMu,
+                    newCov,
+                    incoming.energy,
+                    incoming.total_charge,
+                    newS,
+                    incoming.species
+                );
+            } else {
+                const N = incoming.particles.length;
+                const newParticles = new Array(N);
+                for (let i = 0; i < N; i++) {
+                    newParticles[i] = matvec(tm, incoming.particles[i]);
+                }
+                return new ParticleBeam(
+                    newParticles,
+                    incoming.energy,
+                    incoming.particle_charges,
+                    incoming.survival_probabilities,
+                    newS,
+                    incoming.species
+                );
+            }
+        }
+    
+        _trackSecondOrder(incoming) {
+            if (!(incoming instanceof ParticleBeam)) {
+                throw new Error("Second-order tracking is currently only supported for ParticleBeam.");
+            }
+            const N = incoming.particles.length;
+            const T = this.second_order_transfer_map(incoming.energy, incoming.species);
+            const newParticles = new Array(N);
+            for (let i = 0; i < N; i++) {
+                const p = incoming.particles[i];
+                const p_out = new Float64Array(7);
+                for (let coord = 0; coord < 7; coord++) {
+                    let sum = 0.0;
+                    for (let j = 0; j < 7; j++) {
+                        const pj_val = p[j];
+                        if (pj_val === 0.0) continue;
+                        for (let k = 0; k < 7; k++) {
+                            const pk_val = p[k];
+                            if (pk_val === 0.0) continue;
+                            sum += T[coord][j][k] * pj_val * pk_val;
+                        }
+                    }
+                    p_out[coord] = sum;
+                }
+                newParticles[i] = p_out;
+            }
+            return new ParticleBeam(
+                newParticles,
+                incoming.energy,
+                incoming.particle_charges,
+                incoming.survival_probabilities,
+                incoming.s + this.length,
+                incoming.species
+            );
+        }
+    
+        get is_skippable() {
+            return false;
+        }
+    
+        get is_active() {
+            return this._is_active;
+        }
+    
+        set is_active(val) {
+            this._is_active = val;
+        }
+    
+        split(resolution) {
+            return [this];
+        }
+    }
+    
+    // ----------------------------------------------------
+    // Rotation / Misalignment Matrices helpers
+    // ----------------------------------------------------
+    
+    function rotationMatrix(angle) {
+        const tm = identity(7);
+        if (angle === 0.0) return tm;
+        const c = Math.cos(angle);
+        const s = Math.sin(angle);
+        tm[0][0] = c;
+        tm[0][2] = s;
+        tm[1][1] = c;
+        tm[1][3] = s;
+        tm[2][0] = -s;
+        tm[2][2] = c;
+        tm[3][1] = -s;
+        tm[3][3] = c;
+        return tm;
+    }
+    
+    function misalignmentMatrix(misalignment) {
+        const dx = misalignment[0];
+        const dy = misalignment[1];
+        const R_entry = identity(7);
+        const R_exit = identity(7);
+        R_entry[0][6] = -dx;
+        R_entry[2][6] = -dy;
+        R_exit[0][6] = dx;
+        R_exit[2][6] = dy;
+        return [R_entry, R_exit];
+    }
+    
+    function combinedRotationMisalignmentMatrix(angle, misalignment) {
+        const c = Math.cos(angle);
+        const s = Math.sin(angle);
+        const dx = misalignment[0];
+        const dy = misalignment[1];
+    
+        const R_entry = identity(7);
+        R_entry[0][0] = c;
+        R_entry[0][2] = s;
+        R_entry[1][1] = c;
+        R_entry[1][3] = s;
+        R_entry[2][0] = -s;
+        R_entry[2][2] = c;
+        R_entry[3][1] = -s;
+        R_entry[3][3] = c;
+    
+        R_entry[0][6] = -dx * c - dy * s;
+        R_entry[2][6] = dx * s - dy * c;
+    
+        const R_exit = identity(7);
+        R_exit[0][0] = c;
+        R_exit[0][2] = -s;
+        R_exit[1][1] = c;
+        R_exit[1][3] = -s;
+        R_exit[2][0] = s;
+        R_exit[2][2] = c;
+        R_exit[3][1] = s;
+        R_exit[3][3] = c;
+    
+        R_exit[0][6] = dx;
+        R_exit[2][6] = dy;
+    
+        return [R_entry, R_exit];
+    }
+    
+    // --- File: track_methods.js ---
+    // track_methods.js - Universal transfer map functions for first-order and second-order tracking
+    
+    
+    function computeRelativisticFactors(energy, mass_eV) {
+        const gamma = energy / mass_eV;
+        const igamma2 = 1.0 / (gamma * gamma);
+        const beta = Math.sqrt(Math.max(0.0, 1.0 - igamma2));
+        return { gamma, igamma2, beta };
+    }
+    
+    function base_rmatrix(length, k1, hx, species, energy = 0.0) {
+        const { igamma2, beta } = computeRelativisticFactors(energy, species.mass_eV);
+    
+        const kx2 = k1 + hx * hx;
+        const ky2 = -k1;
+    
+        let cx = 1.0, sx = length;
+        if (kx2 > 0.0) {
+            const kx = Math.sqrt(kx2);
+            cx = Math.cos(kx * length);
+            sx = Math.sin(kx * length) / kx;
+        } else if (kx2 < 0.0) {
+            const kx = Math.sqrt(-kx2);
+            cx = Math.cosh(kx * length);
+            sx = Math.sinh(kx * length) / kx;
+        }
+    
+        let cy = 1.0, sy = length;
+        if (ky2 > 0.0) {
+            const ky = Math.sqrt(ky2);
+            cy = Math.cos(ky * length);
+            sy = Math.sin(ky * length) / ky;
+        } else if (ky2 < 0.0) {
+            const ky = Math.sqrt(-ky2);
+            cy = Math.cosh(ky * length);
+            sy = Math.sinh(ky * length) / ky;
+        }
+    
+        let r = 1.0;
+        if (kx2 > 0.0) {
+            const kx = Math.sqrt(kx2);
+            r = Math.sin(kx * length / 2.0) / (kx * length / 2.0);
+        } else if (kx2 < 0.0) {
+            const kx = Math.sqrt(-kx2);
+            r = Math.sinh(kx * length / 2.0) / (kx * length / 2.0);
+        }
+        const dx = hx * 0.5 * length * length * r * r;
+    
+        const r56 = (hx * hx * Math.pow(length, 3) * si1mdiv(kx2 * length * length) / (beta * beta)) - length / (beta * beta) * igamma2;
+    
+        const R = identity(7);
+        R[0][0] = cx;
+        R[0][1] = sx;
+        R[0][5] = dx / beta;
+        R[1][0] = -kx2 * sx;
+        R[1][1] = cx;
+        R[1][5] = sx * hx / beta;
+        R[2][2] = cy;
+        R[2][3] = sy;
+        R[3][2] = -ky2 * sy;
+        R[3][3] = cy;
+        R[4][0] = sx * hx / beta;
+        R[4][1] = dx / beta;
+        R[4][5] = r56;
+    
+        return R;
+    }
+    
+    function base_ttensor(length, k1, k2, hx, species, energy = 0.0) {
+        const { igamma2, beta } = computeRelativisticFactors(energy, species.mass_eV);
+    
+        const kx2 = k1 + hx * hx;
+        const ky2 = -k1;
+    
+        let cx = 1.0, sx = length;
+        if (kx2 > 0.0) {
+            const kx = Math.sqrt(kx2);
+            cx = Math.cos(kx * length);
+            sx = Math.sin(kx * length) / kx;
+        } else if (kx2 < 0.0) {
+            const kx = Math.sqrt(-kx2);
+            cx = Math.cosh(kx * length);
+            sx = Math.sinh(kx * length) / kx;
+        }
+    
+        let cy = 1.0, sy = length;
+        if (ky2 > 0.0) {
+            const ky = Math.sqrt(ky2);
+            cy = Math.cos(ky * length);
+            sy = Math.sin(ky * length) / ky;
+        } else if (ky2 < 0.0) {
+            const ky = Math.sqrt(-ky2);
+            cy = Math.cosh(ky * length);
+            sy = Math.sinh(ky * length) / ky;
+        }
+    
+        let r = 1.0;
+        if (kx2 > 0.0) {
+            const kx = Math.sqrt(kx2);
+            r = Math.sin(kx * length / 2.0) / (kx * length / 2.0);
+        } else if (kx2 < 0.0) {
+            const kx = Math.sqrt(-kx2);
+            r = Math.sinh(kx * length / 2.0) / (kx * length / 2.0);
+        }
+        const dx = 0.5 * length * length * r * r;
+    
+        const fx = Math.pow(length, 3) * si1mdiv(kx2 * length * length);
+        const f2y = Math.pow(length, 3) * sicos1mdiv(ky2 * length * length);
+    
+        const j1 = fx;
+        const j2 = Math.pow(length, 3) * sipsicos3mdiv(kx2 * length * length);
+        
+        let j3 = 0.0;
+        if (kx2 !== 0.0) {
+            j3 = (15.0 * length - 22.5 * sx + 9.0 * sx * cx - 1.5 * sx * cx * cx + kx2 * sx * sx * sx) / (6.0 * Math.pow(kx2, 3));
+        } else {
+            j3 = Math.pow(length, 7) / 56.0;
+        }
+    
+        const j_denominator = kx2 - 4.0 * ky2;
+        const jc = length * length * cossqrtmcosdivdiff(kx2 * length * length, ky2 * length * length);
+        const js = Math.pow(length, 3) * simsidivdiff(kx2 * length * length, ky2 * length * length);
+        const jd = Math.pow(length, 4) * si2msi2divdiff(kx2 * length * length, ky2 * length * length);
+        
+        let jf = 0.0;
+        if (j_denominator !== 0.0) {
+            jf = (f2y - fx) / j_denominator;
+        } else {
+            jf = Math.pow(length, 5) / 120.0;
+        }
+    
+        const khk = k2 + 2.0 * hx * k1;
+    
+        // Create 3D tensor 7x7x7
+        const T = new Array(7);
+        for (let i = 0; i < 7; i++) {
+            T[i] = zeros(7, 7);
+        }
+    
+        T[0][0][0] = -khk * (sx * sx + dx) / 6.0 - 0.5 * hx * kx2 * sx * sx;
+        T[0][0][1] = 2.0 * (-khk * sx * dx / 6.0 + 0.5 * hx * sx * cx);
+        T[0][1][1] = -khk * dx * dx / 6.0 + 0.5 * hx * dx * cx;
+        T[0][0][5] = 2.0 * (-hx / 12.0 / beta * khk * (3.0 * sx * j1 - dx * dx) + 0.5 * hx * hx / beta * sx * sx + 0.25 / beta * k1 * length * sx);
+        T[0][1][5] = 2.0 * (-hx / 12.0 / beta * khk * (sx * dx * dx - 2.0 * cx * j2) + 0.25 * hx * hx / beta * (sx * dx + cx * j1) - 0.25 / beta * (sx + length * cx));
+        T[0][5][5] = -hx * hx / 6.0 / (beta * beta) * khk * (dx * dx * dx - 2.0 * sx * j2) + 0.5 * Math.pow(hx, 3) / (beta * beta) * sx * j1 - 0.5 * hx / (beta * beta) * length * sx - 0.5 * hx / (beta * beta) * igamma2 * dx;
+        
+        T[0][2][2] = k1 * k2 * jd + 0.5 * (k2 + hx * k1) * dx;
+        T[0][2][3] = 2.0 * (0.5 * k2 * js);
+        T[0][3][3] = k2 * jd - 0.5 * hx * dx;
+    
+        T[1][0][0] = -khk * sx * (1.0 + 2.0 * cx) / 6.0;
+        T[1][0][1] = -2.0 * khk * dx * (1.0 + 2.0 * cx) / 6.0;
+        T[1][1][1] = -khk * sx * dx / 3.0 - 0.5 * hx * sx;
+        T[1][0][5] = 2.0 * (-hx / 12.0 / beta * khk * (3.0 * cx * j1 + sx * dx) - 0.25 / beta * k1 * (sx - length * cx));
+        T[1][1][5] = 2.0 * (-hx / 12.0 / beta * khk * (3.0 * sx * j1 + dx * dx) + 0.25 / beta * k1 * length * sx);
+        T[1][5][5] = -hx * hx / 6.0 / (beta * beta) * khk * (sx * dx * dx - 2.0 * cx * j2) - 0.5 * hx / (beta * beta) * k1 * (cx * j1 - sx * dx) - 0.5 * hx / (beta * beta) * igamma2 * sx;
+        
+        T[1][2][2] = k1 * k2 * js + 0.5 * (k2 + hx * k1) * sx;
+        T[1][2][3] = 2.0 * (0.5 * k2 * jc);
+        T[1][3][3] = k2 * js - 0.5 * hx * sx;
+    
+        T[2][0][2] = 2.0 * (0.5 * k2 * (cy * jc - 2.0 * k1 * sy * js) + 0.5 * hx * k1 * sx * sy);
+        T[2][0][3] = 2.0 * (0.5 * k2 * (sy * jc - 2.0 * cy * js) + 0.5 * hx * sx * cy);
+        T[2][1][2] = 2.0 * (0.5 * k2 * (cy * js - 2.0 * k1 * sy * jd) + 0.5 * hx * k1 * dx * sy);
+        T[2][1][3] = 2.0 * (0.5 * k2 * (sy * js - 2.0 * cy * jd) + 0.5 * hx * dx * cy);
+        T[2][2][5] = 2.0 * (0.5 * hx / beta * k2 * (cy * jd - 2.0 * k1 * sy * jf) + 0.5 * hx * hx / beta * k1 * j1 * sy - 0.25 / beta * k1 * length * sy);
+        T[2][3][5] = 2.0 * (0.5 * hx / beta * k2 * (sy * jd - 2.0 * cy * jf) + 0.5 * hx * hx / beta * j1 * cy - 0.25 / beta * (sy + length * cy));
+    
+        T[3][0][2] = 2.0 * (0.5 * k1 * k2 * (2.0 * cy * js - sy * jc) + 0.5 * (k2 + hx * k1) * sx * cy);
+        T[3][0][3] = 2.0 * (0.5 * k2 * (2.0 * k1 * sy * js - cy * jc) + 0.5 * (k2 + hx * k1) * sx * sy);
+        T[3][1][2] = 2.0 * (0.5 * k1 * k2 * (2.0 * cy * jd - sy * js) + 0.5 * (k2 + hx * k1) * dx * cy);
+        T[3][1][3] = 2.0 * (0.5 * k2 * (2.0 * k1 * sy * jd - cy * js) + 0.5 * (k2 + hx * k1) * dx * sy);
+        T[3][2][5] = 2.0 * (0.5 * hx / beta * k1 * k2 * (2.0 * cy * jf - sy * jd) + 0.5 * hx / beta * (k2 + hx * k1) * j1 * cy + 0.25 / beta * k1 * (sy - length * cy));
+        T[3][3][5] = 2.0 * (0.5 * hx / beta * k2 * (2.0 * k1 * sy * jf - cy * jd) + 0.5 * hx / beta * (k2 + hx * k1) * j1 * sy - 0.25 / beta * k1 * length * sy);
+    
+        T[4][0][0] = -(hx / 12.0 / beta * khk * (sx * dx + 3.0 * j1) - 0.25 / beta * k1 * (length - sx * cx));
+        T[4][0][1] = -2.0 * (hx / 12.0 / beta * khk * dx * dx + 0.25 / beta * k1 * sx * sx);
+        T[4][1][1] = -(hx / 6.0 / beta * khk * j2 - 0.5 / beta * sx - 0.25 / beta * k1 * (j1 - sx * dx));
+        T[4][0][5] = -2.0 * (hx * hx / 12.0 / (beta * beta) * khk * (3.0 * dx * j1 - 4.0 * j2) + 0.25 * hx / (beta * beta) * k1 * j1 * (1.0 + cx) + 0.5 * hx / (beta * beta) * igamma2 * sx);
+        T[4][1][5] = -2.0 * (hx * hx / 12.0 / (beta * beta) * khk * (dx * dx * dx - 2.0 * sx * j2) + 0.25 * hx / (beta * beta) * k1 * sx * j1 + 0.5 * hx / (beta * beta) * igamma2 * dx);
+        T[4][5][5] = -(Math.pow(hx, 3) / 6.0 / Math.pow(beta, 3) * khk * (3.0 * j3 - 2.0 * dx * j2) + hx * hx / 6.0 / Math.pow(beta, 3) * k1 * (sx * dx * dx - j2 * (1.0 + 2.0 * cx)) + 1.5 / Math.pow(beta, 3) * igamma2 * (hx * hx * j1 - length));
+        
+        T[4][2][2] = -(-hx / beta * k1 * k2 * jf - 0.5 * hx / beta * (k2 + hx * k1) * j1 + 0.25 / beta * k1 * (length - cy * sy));
+        T[4][2][3] = -2.0 * (-0.5 * hx / beta * k2 * jd - 0.25 / beta * k1 * sy * sy);
+        T[4][3][3] = -(-hx / beta * k2 * jf + 0.5 * hx * hx / beta * j1 - 0.25 / beta * (length + cy * sy));
+    
+        return T;
+    }
+    
+    function drift_matrix(length, energy, species) {
+        const { igamma2, beta } = computeRelativisticFactors(energy, species.mass_eV);
+        const tm = identity(7);
+        tm[0][1] = length;
+        tm[2][3] = length;
+        tm[4][5] = -length / (beta * beta) * igamma2;
+        return tm;
+    }
+    
+    // --- File: drift.js ---
+    // drift.js - Drift section element
+    
+    
+    class Drift extends Element {
+        constructor(length, { tracking_method = "linear", name = null } = {}) {
+            super(name, length);
+            this.tracking_method = tracking_method; // "linear" or "second_order"
+        }
+    
+        first_order_transfer_map(energy, species) {
+            return drift_matrix(this.length, energy, species);
+        }
+    
+        second_order_transfer_map(energy, species) {
+            const T = base_ttensor(this.length, 0.0, 0.0, 0.0, species, energy);
+            const R = this.first_order_transfer_map(energy, species);
+            for (let i = 0; i < 7; i++) {
+                for (let j = 0; j < 7; j++) {
+                    T[i][6][j] = R[i][j];
+                }
+            }
+            return T;
+        }
+    
+        track(incoming) {
+            if (this.tracking_method === "linear") {
+                return this._trackFirstOrder(incoming);
+            } else if (this.tracking_method === "second_order") {
+                return this._trackSecondOrder(incoming);
+            } else {
+                throw new Error(`Unsupported tracking method '${this.tracking_method}' in Drift`);
+            }
+        }
+    
+        get is_skippable() {
+            return this.tracking_method === "linear";
+        }
+    
+        split(resolution) {
+            if (this.length <= 0) return [this];
+            const num_splits = Math.ceil(this.length / resolution);
+            if (num_splits <= 1) return [this];
+            const split_length = this.length / num_splits;
+            const splits = [];
+            for (let i = 0; i < num_splits; i++) {
+                splits.push(new Drift(split_length, { tracking_method: this.tracking_method, name: `${this.name}_split_${i}` }));
+            }
+            return splits;
+        }
+    }
+    
+    // --- File: quadrupole.js ---
+    // quadrupole.js - Quadrupole magnet element
+    
+    
+    class Quadrupole extends Element {
+        constructor(length, {
+            k1 = 0.0,
+            misalignment = [0.0, 0.0],
+            tilt = 0.0,
+            tracking_method = "linear",
+            name = null
+        } = {}) {
+            super(name, length);
+            this.k1 = k1;
+            this.misalignment = misalignment;
+            this.tilt = tilt;
+            this.tracking_method = tracking_method; // "linear" or "second_order"
+        }
+    
+        first_order_transfer_map(energy, species) {
+            const R = base_rmatrix(this.length, this.k1, 0.0, species, energy);
+            const [R_entry, R_exit] = combinedRotationMisalignmentMatrix(this.tilt, this.misalignment);
+            return matmul(matmul(R_exit, R), R_entry);
+        }
+    
+        second_order_transfer_map(energy, species) {
+            const T = base_ttensor(this.length, this.k1, 0.0, 0.0, species, energy);
+            const R = base_rmatrix(this.length, this.k1, 0.0, species, energy);
+            for (let i = 0; i < 7; i++) {
+                for (let j = 0; j < 7; j++) {
+                    T[i][6][j] = R[i][j];
+                }
+            }
+    
+            const [R_entry, R_exit] = combinedRotationMisalignmentMatrix(this.tilt, this.misalignment);
+            
+            // Tensor rotation: T_new = R_exit * T * R_entry * R_entry
+            const T_new = new Array(7);
+            for (let i = 0; i < 7; i++) T_new[i] = zeros(7, 7);
+    
+            for (let i = 0; i < 7; i++) {
+                for (let n = 0; n < 7; n++) {
+                    for (let m = 0; m < 7; m++) {
+                        let sum = 0.0;
+                        for (let j = 0; j < 7; j++) {
+                            const r_exit = R_exit[i][j];
+                            if (r_exit === 0.0) continue;
+                            for (let k = 0; k < 7; k++) {
+                                const r_entry_kn = R_entry[k][n];
+                                if (r_entry_kn === 0.0) continue;
+                                for (let l = 0; l < 7; l++) {
+                                    const r_entry_lm = R_entry[l][m];
+                                    if (r_entry_lm === 0.0) continue;
+                                    sum += r_exit * T[j][k][l] * r_entry_kn * r_entry_lm;
+                                }
+                            }
+                        }
+                        T_new[i][n][m] = sum;
+                    }
+                }
+            }
+            return T_new;
+        }
+    
+        track(incoming) {
+            if (this.tracking_method === "linear") {
+                return this._trackFirstOrder(incoming);
+            } else if (this.tracking_method === "second_order") {
+                return this._trackSecondOrder(incoming);
+            } else {
+                throw new Error(`Unsupported tracking method '${this.tracking_method}' in Quadrupole`);
+            }
+        }
+    
+        get is_skippable() {
+            return this.tracking_method === "linear";
+        }
+    
+        get is_active() {
+            return this.k1 !== 0.0;
+        }
+    
+        split(resolution) {
+            if (this.length <= 0) return [this];
+            const num_splits = Math.ceil(this.length / resolution);
+            if (num_splits <= 1) return [this];
+            const split_length = this.length / num_splits;
+            const splits = [];
+            for (let i = 0; i < num_splits; i++) {
+                splits.push(new Quadrupole(split_length, {
+                    k1: this.k1,
+                    misalignment: this.misalignment,
+                    tilt: this.tilt,
+                    tracking_method: this.tracking_method,
+                    name: `${this.name}_split_${i}`
+                }));
+            }
+            return splits;
+        }
+    }
+    
+    // --- File: dipole.js ---
+    // dipole.js - Sector bending dipole magnet element
+    
+    
+    // Helper to transform T_ijk using M_exit (exit matrix) and M_entry (entry matrix)
+    function applyTensorTransform(T, M_exit, M_entry) {
+        const T_new = new Array(7);
+        for (let i = 0; i < 7; i++) T_new[i] = zeros(7, 7);
+    
+        for (let i = 0; i < 7; i++) {
+            for (let n = 0; n < 7; n++) {
+                for (let m = 0; m < 7; m++) {
+                    let sum = 0.0;
+                    for (let j = 0; j < 7; j++) {
+                        const m_exit = M_exit[i][j];
+                        if (m_exit === 0.0) continue;
+                        for (let k = 0; k < 7; k++) {
+                            const m_entry_kn = M_entry[k][n];
+                            if (m_entry_kn === 0.0) continue;
+                            for (let l = 0; l < 7; l++) {
+                                const m_entry_lm = M_entry[l][m];
+                                if (m_entry_lm === 0.0) continue;
+                                sum += m_exit * T[j][k][l] * m_entry_kn * m_entry_lm;
+                            }
+                        }
+                    }
+                    T_new[i][n][m] = sum;
+                }
+            }
+        }
+        return T_new;
+    }
+    
+    class Dipole extends Element {
+        constructor(length, {
+            angle = 0.0,
+            k1 = 0.0,
+            dipole_e1 = 0.0,
+            dipole_e2 = 0.0,
+            tilt = 0.0,
+            gap = 0.0,
+            gap_exit = null,
+            fringe_integral = 0.0,
+            fringe_integral_exit = null,
+            tracking_method = "linear",
+            name = null
+        } = {}) {
+            super(name, length);
+            this.angle = angle;
+            this.k1 = k1;
+            this.dipole_e1 = dipole_e1;
+            this.dipole_e2 = dipole_e2;
+            this.tilt = tilt;
+            this.gap = gap;
+            this.gap_exit = gap_exit !== null ? gap_exit : gap;
+            this.fringe_integral = fringe_integral;
+            this.fringe_integral_exit = fringe_integral_exit !== null ? fringe_integral_exit : fringe_integral;
+            this.tracking_method = tracking_method; // "linear" or "second_order"
+        }
+    
+        get hx() {
+            return this.length > 0 ? this.angle / this.length : 0.0;
+        }
+    
+        _transfer_map_enter() {
+            const tm = identity(7);
+            const e1 = this.dipole_e1;
+            const cos_e1 = Math.cos(e1);
+            if (cos_e1 === 0.0) return tm;
+            const sec_e = 1.0 / cos_e1;
+            const phi = this.fringe_integral * this.hx * this.gap * sec_e * (1.0 + Math.sin(e1) * Math.sin(e1));
+            tm[1][0] = this.hx * Math.tan(e1);
+            tm[3][2] = -this.hx * Math.tan(e1 - phi);
+            return tm;
+        }
+    
+        _transfer_map_exit() {
+            const tm = identity(7);
+            const e2 = this.dipole_e2;
+            const cos_e2 = Math.cos(e2);
+            if (cos_e2 === 0.0) return tm;
+            const sec_e = 1.0 / cos_e2;
+            const phi = this.fringe_integral_exit * this.hx * this.gap_exit * sec_e * (1.0 + Math.sin(e2) * Math.sin(e2));
+            tm[1][0] = this.hx * Math.tan(e2);
+            tm[3][2] = -this.hx * Math.tan(e2 - phi);
+            return tm;
+        }
+    
+        first_order_transfer_map(energy, species) {
+            const R_enter = this._transfer_map_enter();
+            const R_exit = this._transfer_map_exit();
+            const R = base_rmatrix(this.length, this.k1, this.hx, species, energy);
+            
+            // Fringe fields
+            let R_total = matmul(matmul(R_exit, R), R_enter);
+    
+            // Rotation
+            if (this.tilt !== 0.0) {
+                const rot = rotationMatrix(this.tilt);
+                R_total = matmul(matmul(transpose(rot), R_total), rot);
+            }
+            return R_total;
+        }
+    
+        second_order_transfer_map(energy, species) {
+            const R_enter = this._transfer_map_enter();
+            const R_exit = this._transfer_map_exit();
+            const T = base_ttensor(this.length, this.k1, 0.0, this.hx, species, energy);
+            const R = base_rmatrix(this.length, this.k1, this.hx, species, energy);
+    
+            for (let i = 0; i < 7; i++) {
+                for (let j = 0; j < 7; j++) {
+                    T[i][6][j] = R[i][j];
+                }
+            }
+    
+            // Apply fringe fields to T
+            let T_total = applyTensorTransform(T, R_exit, R_enter);
+    
+            // Apply rotation
+            if (this.tilt !== 0.0) {
+                const rot = rotationMatrix(this.tilt);
+                T_total = applyTensorTransform(T_total, transpose(rot), rot);
+            }
+    
+            return T_total;
+        }
+    
+        track(incoming) {
+            if (this.tracking_method === "linear") {
+                return this._trackFirstOrder(incoming);
+            } else if (this.tracking_method === "second_order") {
+                return this._trackSecondOrder(incoming);
+            } else {
+                throw new Error(`Unsupported tracking method '${this.tracking_method}' in Dipole`);
+            }
+        }
+    
+        get is_skippable() {
+            return this.tracking_method === "linear";
+        }
+    
+        get is_active() {
+            return this.angle !== 0.0;
+        }
+    }
+    
+    // --- File: horizontal_corrector.js ---
+    // horizontal_corrector.js - Horizontal corrector magnet
+    
+    
+    class HorizontalCorrector extends Element {
+        constructor(length, { angle = 0.0, name = null } = {}) {
+            super(name, length);
+            this.angle = angle;
+        }
+    
+        first_order_transfer_map(energy, species) {
+            const { igamma2, beta } = computeRelativisticFactors(energy, species.mass_eV);
+            const tm = identity(7);
+            tm[0][1] = this.length;
+            tm[1][6] = this.angle;
+            tm[2][3] = this.length;
+            if (beta > 0.0) {
+                tm[4][5] = -this.length / (beta * beta) * igamma2;
+            }
+            return tm;
+        }
+    
+        get is_skippable() {
+            return true;
+        }
+    
+        get is_active() {
+            return this.angle !== 0.0;
+        }
+    }
+    
+    // --- File: vertical_corrector.js ---
+    // vertical_corrector.js - Vertical corrector magnet
+    
+    
+    class VerticalCorrector extends Element {
+        constructor(length, { angle = 0.0, name = null } = {}) {
+            super(name, length);
+            this.angle = angle;
+        }
+    
+        first_order_transfer_map(energy, species) {
+            const { igamma2, beta } = computeRelativisticFactors(energy, species.mass_eV);
+            const tm = identity(7);
+            tm[0][1] = this.length;
+            tm[2][3] = this.length;
+            tm[3][6] = this.angle;
+            if (beta > 0.0) {
+                tm[4][5] = -this.length / (beta * beta) * igamma2;
+            }
+            return tm;
+        }
+    
+        get is_skippable() {
+            return true;
+        }
+    
+        get is_active() {
+            return this.angle !== 0.0;
+        }
+    }
+    
+    // --- File: combined_corrector.js ---
+    // combined_corrector.js - Combined horizontal/vertical corrector magnet
+    
+    
+    class CombinedCorrector extends Element {
+        constructor(length, { horizontal_angle = 0.0, vertical_angle = 0.0, name = null } = {}) {
+            super(name, length);
+            this.horizontal_angle = horizontal_angle;
+            this.vertical_angle = vertical_angle;
+        }
+    
+        first_order_transfer_map(energy, species) {
+            const { igamma2, beta } = computeRelativisticFactors(energy, species.mass_eV);
+            const tm = identity(7);
+            tm[0][1] = this.length;
+            tm[1][6] = this.horizontal_angle;
+            tm[2][3] = this.length;
+            tm[3][6] = this.vertical_angle;
+            if (beta > 0.0) {
+                tm[4][5] = -this.length / (beta * beta) * igamma2;
+            }
+            return tm;
+        }
+    
+        get is_skippable() {
+            return true;
+        }
+    
+        get is_active() {
+            return this.horizontal_angle !== 0.0 || this.vertical_angle !== 0.0;
+        }
+    }
+    
+    // --- File: cavity.js ---
+    // cavity.js - RF Accelerating Cavity element
+    
+    
+    const speed_of_light = 299792458.0;
+    
+    class Cavity extends Element {
+        constructor(length, {
+            voltage = 0.0,
+            phase = 0.0, // phase in degrees
+            frequency = 0.0, // frequency in Hz
+            cavity_type = "standing_wave", // "standing_wave" or "traveling_wave"
+            name = null
+        } = {}) {
+            super(name, length);
+            this.voltage = voltage;
+            this.phase = phase;
+            this.frequency = frequency;
+            this.cavity_type = cavity_type;
+        }
+    
+        first_order_transfer_map(energy, species) {
+            if (!this.is_active) {
+                return identity(7);
+            }
+            return this._cavity_rmatrix(energy, species);
+        }
+    
+        _cavity_rmatrix(energy, species) {
+            const phi = this.phase * Math.PI / 180.0;
+            const effective_voltage = -this.voltage * species.num_elementary_charges;
+            const delta_energy = effective_voltage * Math.cos(phi);
+    
+            const Ei = energy / species.mass_eV;
+            const dE = delta_energy / species.mass_eV;
+            const Ef = Ei + dE;
+            const Ep = dE / this.length;
+    
+            const k = 2.0 * Math.PI * this.frequency / speed_of_light;
+    
+            let r11 = 1.0, r12 = this.length, r21 = 0.0, r22 = 1.0;
+            let r55 = 1.0, r56 = 0.0, r65 = 0.0, r66 = 1.0;
+    
+            if (this.cavity_type === "standing_wave") {
+                const alpha = Math.sqrt(0.125) * effective_voltage / energy * log1pdiv(delta_energy / energy);
+                const beta0 = Math.sqrt(Math.max(0.0, 1.0 - 1.0 / (Ei * Ei)));
+                const beta1 = Math.sqrt(Math.max(0.0, 1.0 - 1.0 / (Ef * Ef)));
+    
+                r11 = Math.cos(alpha) - Math.sqrt(2.0) * Math.cos(phi) * Math.sin(alpha);
+                
+                const sinc_val = (alpha === 0.0) ? 1.0 : Math.sin(alpha) / alpha;
+                r12 = sinc_val * log1pdiv(delta_energy / energy) * this.length;
+                
+                r21 = -effective_voltage / ((energy + delta_energy) * Math.sqrt(2.0) * this.length) * (0.5 + Math.cos(phi) * Math.cos(phi)) * Math.sin(alpha);
+                r22 = Ei / Ef * (Math.cos(alpha) + Math.sqrt(2.0) * Math.cos(phi) * Math.sin(alpha));
+    
+                r55 = 1.0 + (dE !== 0.0 ? k * this.length * beta0 * Math.tan(phi) * (Ei * Ef * (beta0 * beta1 - 1.0) + 1.0) / (beta1 * Ef * dE) : 0.0);
+                r56 = -this.length / (Ef * Ef * Ei * beta1) * (Ef + Ei) / (beta1 + beta0);
+                r65 = k * Math.sin(phi) * effective_voltage / (beta1 * (energy + delta_energy));
+                r66 = Ei / Ef * beta0 / beta1;
+            } else if (this.cavity_type === "traveling_wave") {
+                // M_body
+                const m_body_00 = 1.0;
+                const m_body_01 = this.length * log1pdiv(dE / Ei);
+                const m_body_10 = 0.0;
+                const m_body_11 = Ei / Ef;
+    
+                // M_f_entry
+                const m_entry_00 = 1.0;
+                const m_entry_01 = 0.0;
+                const m_entry_10 = -Ep / (2.0 * Ei);
+                const m_entry_11 = 1.0;
+    
+                // M_f_exit
+                const m_exit_00 = 1.0;
+                const m_exit_01 = 0.0;
+                const m_exit_10 = Ep / (2.0 * Ef);
+                const m_exit_11 = 1.0;
+    
+                // M_combined = M_f_exit * M_body * M_f_entry
+                const t_00 = m_body_00 * m_entry_00 + m_body_01 * m_entry_10;
+                const t_01 = m_body_00 * m_entry_01 + m_body_01 * m_entry_11;
+                const t_10 = m_body_10 * m_entry_00 + m_body_11 * m_entry_10;
+                const t_11 = m_body_10 * m_entry_01 + m_body_11 * m_entry_11;
+    
+                r11 = m_exit_00 * t_00 + m_exit_01 * t_10;
+                r12 = m_exit_00 * t_01 + m_exit_01 * t_11;
+                r21 = m_exit_10 * t_00 + m_exit_11 * t_10;
+                r22 = m_exit_10 * t_01 + m_exit_11 * t_11;
+    
+                r55 = 1.0;
+                r56 = 0.0;
+                r65 = k * Math.sin(phi) * effective_voltage / (energy + delta_energy);
+                r66 = r22;
+            }
+    
+            const R = identity(7);
+            R[0][0] = r11;
+            R[0][1] = r12;
+            R[1][0] = r21;
+            R[1][1] = r22;
+            R[2][2] = r11;
+            R[2][3] = r12;
+            R[3][2] = r21;
+            R[3][3] = r22;
+            R[4][4] = r55;
+            R[4][5] = r56;
+            R[5][4] = r65;
+            R[5][5] = r66;
+            return R;
+        }
+    
+        track(incoming) {
+            const { gamma: gamma0, igamma2, beta: beta0 } = computeRelativisticFactors(incoming.energy, incoming.species.mass_eV);
+            const phi = this.phase * Math.PI / 180.0;
+            const tm = this.first_order_transfer_map(incoming.energy, incoming.species);
+    
+            const delta_energy = this.voltage * Math.cos(phi) * incoming.species.num_elementary_charges * -1;
+            const outgoing_energy = incoming.energy + delta_energy;
+            const { gamma: gamma1, beta: beta1 } = computeRelativisticFactors(outgoing_energy, incoming.species.mass_eV);
+    
+            let T566 = 1.5 * this.length * igamma2 / (beta0 * beta0 * beta0);
+            let T556 = 0.0;
+            let T555 = 0.0;
+    
+            const k = 2.0 * Math.PI * this.frequency / speed_of_light;
+            const dgamma = this.voltage / incoming.species.mass_eV;
+    
+            if (delta_energy > 0.0) {
+                const b0_3 = beta0 * beta0 * beta0;
+                const b1_3 = beta1 * beta1 * beta1;
+                const g0_3 = gamma0 * gamma0 * gamma0;
+                const g1_3 = gamma1 * gamma1 * gamma1;
+                T566 = this.length * (b0_3 * g0_3 - b1_3 * g1_3) / (2.0 * beta0 * b1_3 * gamma0 * (gamma0 - gamma1) * g1_3);
+                T556 = beta0 * k * this.length * dgamma * gamma0 * (b1_3 * g1_3 + beta0 * (gamma0 - g1_3)) * Math.sin(phi) / (b1_3 * g1_3 * (gamma0 - gamma1) * (gamma0 - gamma1));
+                T555 = (beta0 * beta0) * (k * k) * this.length * dgamma / 2.0 * (
+                    dgamma * (2.0 * gamma0 * g1_3 * (beta0 * b1_3 - 1.0) + gamma0 * gamma0 + 3.0 * gamma1 * gamma1 - 2.0) / (b1_3 * g1_3 * Math.pow(gamma0 - gamma1, 3)) * Math.sin(phi) * Math.sin(phi)
+                    - (gamma1 * gamma0 * (beta1 * beta0 - 1.0) + 1.0) / (beta1 * gamma1 * (gamma0 - gamma1) * (gamma0 - gamma1)) * Math.cos(phi)
+                );
+            }
+    
+            const newS = incoming.s + this.length;
+    
+            if (incoming instanceof ParameterBeam) {
+                const outgoing_mu = matvec(tm, incoming.mu);
+                const outgoing_cov = matmul(matmul(tm, incoming.cov), transpose(tm));
+    
+                outgoing_mu[5] = incoming.mu[5] * incoming.energy * beta0 / (outgoing_energy * beta1) 
+                    + this.voltage * beta0 / (outgoing_energy * beta1) * (Math.cos(-incoming.mu[4] * beta0 * k + phi) - Math.cos(phi));
+                outgoing_cov[5][5] = incoming.cov[5][5];
+    
+                outgoing_mu[4] = outgoing_mu[4] + T566 * incoming.mu[5] * incoming.mu[5] 
+                    + T556 * incoming.mu[4] * incoming.mu[5] + T555 * incoming.mu[4] * incoming.mu[4];
+                
+                const cov44 = T566 * incoming.cov[5][5] * incoming.cov[5][5] 
+                    + T556 * incoming.cov[4][5] * incoming.cov[5][5] + T555 * incoming.cov[4][4] * incoming.cov[4][4];
+                outgoing_cov[4][4] = cov44;
+                outgoing_cov[4][5] = cov44;
+                outgoing_cov[5][4] = cov44;
+    
+                return new ParameterBeam(
+                    outgoing_mu,
+                    outgoing_cov,
+                    outgoing_energy,
+                    incoming.total_charge,
+                    newS,
+                    incoming.species
+                );
+            } else {
+                const N = incoming.particles.length;
+                const outgoing_particles = new Array(N);
+                for (let i = 0; i < N; i++) {
+                    const p = incoming.particles[i];
+                    const p_out = matvec(tm, p);
+    
+                    p_out[5] = p[5] * incoming.energy * beta0 / (outgoing_energy * beta1) 
+                        + this.voltage * beta0 / (outgoing_energy * beta1) * (Math.cos(-p[4] * beta0 * k + phi) - Math.cos(phi));
+                    
+                    p_out[4] = p_out[4] + T566 * p[5] * p[5] + T556 * p[4] * p[5] + T555 * p[4] * p[4];
+                    outgoing_particles[i] = p_out;
+                }
+                return new ParticleBeam(
+                    outgoing_particles,
+                    outgoing_energy,
+                    incoming.particle_charges,
+                    incoming.survival_probabilities,
+                    newS,
+                    incoming.species
+                );
+            }
+        }
+    
+        get is_skippable() {
+            return !this.is_active;
+        }
+    
+        get is_active() {
+            return this.voltage !== 0.0;
+        }
+    }
+    
+    // --- File: bpm.js ---
+    // bpm.js - Beam Position Monitor element
+    
+    
+    class BPM extends Element {
+        constructor({ is_active = false, misalignment = [0.0, 0.0], name = null } = {}) {
+            super(name, 0.0); // BPM length is 0.0
+            this.is_active = is_active;
+            this.misalignment = misalignment;
+            this.reading = [NaN, NaN];
+        }
+    
+        first_order_transfer_map(energy, species) {
+            return identity(7);
+        }
+    
+        track(incoming) {
+            if (this.is_active) {
+                this.reading = [
+                    incoming.mu_x - this.misalignment[0],
+                    incoming.mu_y - this.misalignment[1]
+                ];
+            }
+            return incoming.clone();
+        }
+    
+        get is_skippable() {
+            return !this.is_active;
+        }
+    }
+    
+    // --- File: screen.js ---
+    // screen.js - Diagnostic screen element
+    
+    
+    class Screen extends Element {
+        constructor({
+            resolution = [256, 256],
+            pixel_size = [1e-4, 1e-4],
+            binning = 1,
+            misalignment = [0.0, 0.0],
+            is_blocking = false,
+            is_active = false,
+            name = null
+        } = {}) {
+            super(name, 0.0); // Screen length is 0.0
+            this.resolution = resolution;
+            this.pixel_size = pixel_size;
+            this.binning = binning;
+            this.misalignment = misalignment;
+            this.is_blocking = is_blocking;
+            this.is_active = is_active;
+            this.read_beam = null;
+        }
+    
+        first_order_transfer_map(energy, species) {
+            return identity(7);
+        }
+    
+        track(incoming) {
+            if (this.is_active) {
+                const copy_of_incoming = incoming.clone();
+                const dx = this.misalignment[0];
+                const dy = this.misalignment[1];
+                
+                if (copy_of_incoming instanceof ParameterBeam) {
+                    copy_of_incoming.mu[0] -= dx;
+                    copy_of_incoming.mu[2] -= dy;
+                } else if (copy_of_incoming instanceof ParticleBeam) {
+                    for (let i = 0; i < copy_of_incoming.particles.length; i++) {
+                        copy_of_incoming.particles[i][0] -= dx;
+                        copy_of_incoming.particles[i][2] -= dy;
+                    }
+                }
+                this.read_beam = copy_of_incoming;
+            }
+    
+            if (this.is_active && this.is_blocking) {
+                const blocked = incoming.clone();
+                if (blocked instanceof ParameterBeam) {
+                    blocked.total_charge = 0.0;
+                } else if (blocked instanceof ParticleBeam) {
+                    blocked.survival_probabilities.fill(0.0);
+                    blocked.total_charge = 0.0;
+                }
+                return blocked;
+            }
+    
+            return incoming.clone();
+        }
+    
+        get_profile_image() {
+            if (!this.is_active || !this.read_beam) return null;
+            const beam = this.read_beam;
+            const [w, h] = this.resolution;
+            const [px, py] = this.pixel_size;
+            const effective_w = Math.floor(w / this.binning);
+            const effective_h = Math.floor(h / this.binning);
+            
+            const x_min = -w * px / 2;
+            const x_max = w * px / 2;
+            const y_min = -h * py / 2;
+            const y_max = h * py / 2;
+    
+            const grid = new Float64Array(effective_w * effective_h);
+            
+            if (beam instanceof ParticleBeam) {
+                for (let i = 0; i < beam.particles.length; i++) {
+                    const p = beam.particles[i];
+                    const prob = beam.survival_probabilities[i];
+                    if (prob <= 0.0) continue;
+                    
+                    const px_val = p[0];
+                    const py_val = p[2];
+                    
+                    if (px_val >= x_min && px_val < x_max && py_val >= y_min && py_val < y_max) {
+                        const ix = Math.floor((px_val - x_min) / (x_max - x_min) * effective_w);
+                        const iy = Math.floor((py_val - y_min) / (y_max - y_min) * effective_h);
+                        const cl_ix = Math.min(effective_w - 1, Math.max(0, ix));
+                        const cl_iy = Math.min(effective_h - 1, Math.max(0, iy));
+                        grid[cl_iy * effective_w + cl_ix] += Math.abs(beam.particle_charges[i]) * prob;
+                    }
+                }
+            }
+            return {
+                width: effective_w,
+                height: effective_h,
+                data: grid,
+                x_min, x_max, y_min, y_max
+            };
+        }
+    
+        get is_skippable() {
+            return !this.is_active;
+        }
+    }
+    
+    // --- File: aperture.js ---
+    // aperture.js - Physical aperture element
+    
+    
+    class Aperture extends Element {
+        constructor({
+            x_max = Infinity,
+            y_max = Infinity,
+            shape = "rectangular", // "rectangular" or "elliptical"
+            is_active = true,
+            name = null
+        } = {}) {
+            super(name, 0.0); // Aperture length is 0.0
+            this.x_max = x_max;
+            this.y_max = y_max;
+            this.shape = shape;
+            this.is_active = is_active;
+        }
+    
+        first_order_transfer_map(energy, species) {
+            return identity(7);
+        }
+    
+        track(incoming) {
+            if (!this.is_active) {
+                return incoming;
+            }
+            if (!(incoming instanceof ParticleBeam)) {
+                console.warn("Aperture tracking is currently only supported for ParticleBeam.");
+                return incoming;
+            }
+    
+            const N = incoming.particles.length;
+            const newProbs = new Float64Array(N);
+            const x_lim = this.x_max;
+            const y_lim = this.y_max;
+    
+            if (this.shape === "rectangular") {
+                for (let i = 0; i < N; i++) {
+                    const px = incoming.particles[i][0];
+                    const py = incoming.particles[i][2];
+                    const inside = px > -x_lim && px < x_lim && py > -y_lim && py < y_lim;
+                    newProbs[i] = incoming.survival_probabilities[i] * (inside ? 1.0 : 0.0);
+                }
+            } else if (this.shape === "elliptical") {
+                const x_lim_sq = x_lim * x_lim;
+                const y_lim_sq = y_lim * y_lim;
+                for (let i = 0; i < N; i++) {
+                    const px = incoming.particles[i][0];
+                    const py = incoming.particles[i][2];
+                    const val = (px * px) / x_lim_sq + (py * py) / y_lim_sq;
+                    const inside = val <= 1.0;
+                    newProbs[i] = incoming.survival_probabilities[i] * (inside ? 1.0 : 0.0);
+                }
+            } else {
+                throw new Error(`Unsupported aperture shape '${this.shape}'`);
+            }
+    
+            return new ParticleBeam(
+                incoming.particles,
+                incoming.energy,
+                incoming.particle_charges,
+                newProbs,
+                incoming.s,
+                incoming.species
+            );
+        }
+    
+        get is_skippable() {
+            return !this.is_active;
+        }
+    }
+    
+    // --- File: solenoid.js ---
+    // solenoid.js - Solenoid element
+    
+    
+    class Solenoid extends Element {
+        constructor(length, { k = 0.0, misalignment = [0.0, 0.0], name = null } = {}) {
+            super(name, length);
+            this.k = k;
+            this.misalignment = misalignment;
+        }
+    
+        first_order_transfer_map(energy, species) {
+            const gamma = energy / species.mass_eV;
+            const lk = this.length * this.k;
+            const c = Math.cos(lk);
+            const s = Math.sin(lk);
+            
+            const s_k = (this.k === 0.0) ? this.length : Math.sin(lk) / this.k;
+            const r56 = (gamma === 1.0) ? 0.0 : this.length / (1.0 - gamma * gamma);
+    
+            const R = identity(7);
+            R[0][0] = c * c;
+            R[0][1] = c * s_k;
+            R[0][2] = s * c;
+            R[0][3] = s * s_k;
+            
+            R[1][0] = -this.k * s * c;
+            R[1][1] = c * c;
+            R[1][2] = -this.k * s * s;
+            R[1][3] = s * c;
+            
+            R[2][0] = -s * c;
+            R[2][1] = -s * s_k;
+            R[2][2] = c * c;
+            R[2][3] = c * s_k;
+            
+            R[3][0] = this.k * s * s;
+            R[3][1] = -s * c;
+            R[3][2] = -this.k * s * c;
+            R[3][3] = c * c;
+    
+            R[4][5] = r56;
+    
+            const [R_entry, R_exit] = misalignmentMatrix(this.misalignment);
+            return matmul(matmul(R_exit, R), R_entry);
+        }
+    
+        get is_skippable() {
+            return true;
+        }
+    
+        get is_active() {
+            return this.k !== 0.0;
+        }
+    
+        split(resolution) {
+            if (this.length <= 0) return [this];
+            const num_splits = Math.ceil(this.length / resolution);
+            if (num_splits <= 1) return [this];
+            const split_length = this.length / num_splits;
+            const splits = [];
+            for (let i = 0; i < num_splits; i++) {
+                splits.push(new Solenoid(split_length, {
+                    k: this.k,
+                    misalignment: this.misalignment,
+                    name: `${this.name}_split_${i}`
+                }));
+            }
+            return splits;
+        }
+    }
+    
+    // --- File: sextupole.js ---
+    // sextupole.js - Sextupole magnet element
+    
+    
+    class Sextupole extends Element {
+        constructor(length, {
+            k2 = 0.0,
+            misalignment = [0.0, 0.0],
+            tilt = 0.0,
+            tracking_method = "second_order",
+            name = null
+        } = {}) {
+            super(name, length);
+            this.k2 = k2;
+            this.misalignment = misalignment;
+            this.tilt = tilt;
+            this.tracking_method = tracking_method; // "linear" or "second_order"
+        }
+    
+        first_order_transfer_map(energy, species) {
+            return drift_matrix(this.length, energy, species);
+        }
+    
+        second_order_transfer_map(energy, species) {
+            const T = base_ttensor(this.length, 0.0, this.k2, 0.0, species, energy);
+            const R = this.first_order_transfer_map(energy, species);
+            for (let i = 0; i < 7; i++) {
+                for (let j = 0; j < 7; j++) {
+                    T[i][6][j] = R[i][j];
+                }
+            }
+    
+            const [R_entry, R_exit] = combinedRotationMisalignmentMatrix(this.tilt, this.misalignment);
+            return applyTensorTransform(T, R_exit, R_entry);
+        }
+    
+        track(incoming) {
+            if (this.tracking_method === "linear") {
+                return this._trackFirstOrder(incoming);
+            } else if (this.tracking_method === "second_order") {
+                return this._trackSecondOrder(incoming);
+            } else {
+                throw new Error(`Unsupported tracking method '${this.tracking_method}' in Sextupole`);
+            }
+        }
+    
+        get is_skippable() {
+            return false;
+        }
+    
+        get is_active() {
+            return this.k2 !== 0.0;
+        }
+    }
+    
+    // --- File: marker.js ---
+    // marker.js - Marker element
+    
+    
+    class Marker extends Element {
+        constructor(name = null) {
+            super(name, 0.0);
+        }
+    
+        first_order_transfer_map(energy, species) {
+            return identity(7);
+        }
+    
+        track(incoming) {
+            return incoming.clone();
+        }
+    
+        get is_skippable() {
+            return true;
+        }
+    }
+    
+    // --- File: custom_transfer_map.js ---
+    // custom_transfer_map.js - Merged or custom predefined transfer map element
+    
+    
+    class CustomTransferMap extends Element {
+        constructor(predefined_transfer_map, { length = 0.0, name = null } = {}) {
+            super(name, length);
+            this.predefined_transfer_map = predefined_transfer_map; // 7x7 matrix
+        }
+    
+        static from_merging_elements(elements, incoming_beam) {
+            let tm = identity(7);
+            let current_beam = incoming_beam;
+            
+            for (const element of elements) {
+                const elm_tm = element.first_order_transfer_map(current_beam.energy, current_beam.species);
+                tm = matmul(elm_tm, tm);
+                current_beam = element.track(current_beam);
+            }
+    
+            let combined_length = 0.0;
+            for (const element of elements) {
+                combined_length += element.length;
+            }
+    
+            const combined_name = "combined_" + elements.map(e => e.name).join("_");
+            return new CustomTransferMap(tm, { length: combined_length, name: combined_name });
+        }
+    
+        first_order_transfer_map(energy, species) {
+            return this.predefined_transfer_map;
+        }
+    
+        get is_skippable() {
+            return true;
+        }
+    }
+    
+    // --- File: segment.js ---
+    // segment.js - Segment class representing a sequence of elements
+    
+    
+    class Segment extends Element {
+        constructor(elements, name = null) {
+            super(name, 0.0);
+            this.elements = elements;
+    
+            // Make elements accessible by their name as properties
+            for (const element of elements) {
+                if (element.name) {
+                    if (this[element.name]) {
+                        if (Array.isArray(this[element.name])) {
+                            this[element.name].push(element);
+                        } else {
+                            this[element.name] = [this[element.name], element];
+                        }
+                    } else {
+                        this[element.name] = element;
+                    }
+                }
+            }
+        }
+    
+        get element_names() {
+            return this.elements.map(e => e.name);
+        }
+    
+        get length() {
+            let total = 0.0;
+            for (const element of this.elements) {
+                total += element.length;
+            }
+            return total;
+        }
+    
+        get is_skippable() {
+            for (const element of this.elements) {
+                if (!element.is_skippable) return false;
+            }
+            return true;
+        }
+    
+        element_index(element_name) {
+            const idx = this.element_names.indexOf(element_name);
+            if (idx === -1) {
+                throw new Error(`Element '${element_name}' not found in segment.`);
+            }
+            return idx;
+        }
+    
+        subcell(start = null, end = null, include_start = true, include_end = true) {
+            let is_in_subcell = start === null;
+            const subelements = [];
+    
+            for (const element of this.elements) {
+                if (element.name === start) {
+                    is_in_subcell = true;
+                    if (include_start) {
+                        subelements.push(element);
+                    }
+                    continue;
+                }
+    
+                if (element.name === end) {
+                    if (include_end && is_in_subcell) {
+                        subelements.push(element);
+                    }
+                    break;
+                }
+    
+                if (is_in_subcell) {
+                    subelements.push(element);
+                }
+            }
+            return new Segment(subelements, `${this.name}_subcell`);
+        }
+    
+        flattened() {
+            const flattened_elements = [];
+            for (const element of this.elements) {
+                if (element instanceof Segment) {
+                    flattened_elements.push(...element.flattened().elements);
+                } else {
+                    flattened_elements.push(element);
+                }
+            }
+            return new Segment(flattened_elements, this.name);
+        }
+    
+        reversed() {
+            const reversed_elements = [...this.elements].reverse().map(element => {
+                if (element instanceof Segment) {
+                    return element.reversed();
+                }
+                return element;
+            });
+            return new Segment(reversed_elements, `${this.name}_reversed`);
+        }
+    
+        first_order_transfer_map(energy, species) {
+            if (!this.is_skippable) {
+                return null;
+            }
+            let tm = identity(7);
+            for (const element of this.elements) {
+                tm = matmul(element.first_order_transfer_map(energy, species), tm);
+            }
+            return tm;
+        }
+    
+        transfer_maps_merged(incoming_beam, except_for = []) {
+            const merged_elements = [];
+            let skippable_elements = [];
+            let tracked_beam = incoming_beam;
+    
+            for (const element of this.elements) {
+                if (element.is_skippable && !except_for.includes(element.name)) {
+                    skippable_elements.push(element);
+                } else {
+                    if (skippable_elements.length === 1) {
+                        merged_elements.push(skippable_elements[0]);
+                        tracked_beam = skippable_elements[0].track(tracked_beam);
+                    } else if (skippable_elements.length > 1) {
+                        merged_elements.push(
+                            CustomTransferMap.from_merging_elements(skippable_elements, tracked_beam)
+                        );
+                        tracked_beam = merged_elements[merged_elements.length - 1].track(tracked_beam);
+                    }
+                    skippable_elements = [];
+                    merged_elements.push(element);
+                    tracked_beam = element.track(tracked_beam);
+                }
+            }
+    
+            if (skippable_elements.length === 1) {
+                merged_elements.push(skippable_elements[0]);
+            } else if (skippable_elements.length > 1) {
+                merged_elements.push(
+                    CustomTransferMap.from_merging_elements(skippable_elements, tracked_beam)
+                );
+            }
+    
+            return new Segment(merged_elements, this.name);
+        }
+    
+        track(incoming) {
+            if (this.is_skippable) {
+                return this._trackFirstOrder(incoming);
+            }
+    
+            const todos = [];
+            let continuous_skippable_elements = [];
+            for (const element of this.elements) {
+                if (element.is_skippable) {
+                    continuous_skippable_elements.push(element);
+                } else {
+                    if (continuous_skippable_elements.length > 0) {
+                        todos.push(new Segment(continuous_skippable_elements));
+                        continuous_skippable_elements = [];
+                    }
+                    todos.push(element);
+                }
+            }
+            if (continuous_skippable_elements.length > 0) {
+                todos.push(new Segment(continuous_skippable_elements));
+            }
+    
+            let current_beam = incoming;
+            for (const todo of todos) {
+                current_beam = todo.track(current_beam);
+            }
+            return current_beam;
+        }
+    
+        split(resolution) {
+            const split_elements = [];
+            for (const element of this.elements) {
+                split_elements.push(...element.split(resolution));
+            }
+            return new Segment(split_elements, this.name);
+        }
+    
+        get_beams_along_segment(incoming, resolution = null) {
+            if (resolution !== null) {
+                const split_segment = this.split(resolution);
+                return split_segment.get_beams_along_segment(incoming);
+            }
+    
+            const beams = [incoming];
+            let current_beam = incoming;
+            for (const element of this.elements) {
+                current_beam = element.track(current_beam);
+                beams.push(current_beam);
+            }
+            return beams;
+        }
+    
+        get_beam_attrs_along_segment(attr_names, incoming, resolution = null) {
+            const beams = this.get_beams_along_segment(incoming, resolution);
+            const singleAttr = typeof attr_names === "string";
+            const attrs = singleAttr ? [attr_names] : attr_names;
+            
+            const results = {};
+            for (const attr of attrs) {
+                results[attr] = new Float64Array(beams.length);
+            }
+    
+            for (let i = 0; i < beams.length; i++) {
+                const beam = beams[i];
+                for (const attr of attrs) {
+                    results[attr][i] = beam[attr];
+                }
+            }
+    
+            return singleAttr ? results[attrs[0]] : results;
+        }
+    
+        clone() {
+            return new Segment(this.elements.map(e => e.clone()), this.name);
+        }
+    }
+    
+    // --- File: latticejson.js ---
+    // latticejson.js - LatticeJSON parser
+    
+    
+    const classMap = {
+        Drift, Quadrupole, Dipole, 
+        HorizontalCorrector, VerticalCorrector, CombinedCorrector,
+        Cavity, BPM, Screen, Aperture, Solenoid, Sextupole, Marker
+    };
+    
+    function parseLatticeJSON(jsonStr) {
+        const data = typeof jsonStr === "string" ? JSON.parse(jsonStr) : jsonStr;
+        const elementsData = data.elements;
+        const latticesData = data.lattices;
+        const rootName = data.root;
+    
+        function parseElement(name) {
+            if (!elementsData[name]) {
+                throw new Error(`Element '${name}' not defined in elements.`);
+            }
+            const [clsName, params] = elementsData[name];
+            const Cls = classMap[clsName];
+            if (!Cls) {
+                console.warn(`Unsupported element class '${clsName}', falling back to Marker.`);
+                return new Marker(name);
+            }
+    
+            const length = params.length !== undefined ? params.length : 0.0;
+            const options = { ...params, name };
+            delete options.length;
+    
+            // Standardize parameter names mapping from Python to constructor args:
+            // in Python it uses dipole_e1, dipole_e2
+            // in Screen it might have Resolution, pixel_size
+            // in correctors, it has angle
+            if (clsName === "Marker") {
+                return new Marker(name);
+            } else if (clsName === "BPM" || clsName === "Screen" || clsName === "Aperture") {
+                return new Cls(options);
+            } else {
+                return new Cls(length, options);
+            }
+        }
+    
+        function parseLattice(name) {
+            if (!latticesData[name]) {
+                return parseElement(name);
+            }
+            const childrenNames = latticesData[name];
+            const children = childrenNames.map(childName => {
+                if (latticesData[childName]) {
+                    return parseLattice(childName);
+                } else {
+                    return parseElement(childName);
+                }
+            });
+            return new Segment(children, name);
+        }
+    
+        return parseLattice(rootName);
+    }
+    
+    
+
+    return {
+                zeros,
+        identity,
+        transpose,
+        matmul,
+        matvec,
+        clone2d,
+        cholesky6,
+        solveTriangularL,
+        solveTriangularLT,
+        invertTriangularL,
+        randn,
+        weightedMean,
+        weightedVariance,
+        weightedStd,
+        weightedCovariance,
+        weightedCovarianceMatrix6,
+        matchDistributionMoments,
+        si,
+        cx_helper,
+        log1pdiv,
+        si1mdiv,
+        sicos1mdiv,
+        sipsicos3mdiv,
+        cossqrtmcosdivdiff,
+        simsidivdiff,
+        si2msi2divdiff,
+        sqrta2minusbdiva,
+        electron_mass_eV,
+        proton_mass_eV,
+        deuteron_mass_eV,
+        elementary_charge,
+        eV_to_kg,
+        Species,
+        Beam,
+        ParameterBeam,
+        ParticleBeam,
+        Element,
+        rotationMatrix,
+        misalignmentMatrix,
+        combinedRotationMisalignmentMatrix,
+        computeRelativisticFactors,
+        base_rmatrix,
+        base_ttensor,
+        drift_matrix,
+        Drift,
+        Quadrupole,
+        Dipole,
+        applyTensorTransform,
+        HorizontalCorrector,
+        VerticalCorrector,
+        CombinedCorrector,
+        Cavity,
+        BPM,
+        Screen,
+        Aperture,
+        Solenoid,
+        Sextupole,
+        Marker,
+        CustomTransferMap,
+        Segment,
+        parseLatticeJSON
+    };
+}));
+
+</script>
+
+    <script>
+        // Global error logging for debugging
+        window.onerror = function (message, source, lineno, colno, error) {
+            console.error("Global JS Error:", message, "at", source, ":", lineno, ":", colno, error);
+            alert(`JavaScript Error: ${message}\nSource: ${source}\nLine: ${lineno}:${colno}`);
+            return false;
+        };
+
+        // Preset Definitions
+        const PRESETS = {
+            fodo: {
+                root: "fodo",
+                elements: {
+                    "d1": ["Drift", {"length": 0.5}],
+                    "qf": ["Quadrupole", {"length": 0.2, "k1": 3.8, "name": "qf"}],
+                    "d2": ["Drift", {"length": 1.0}],
+                    "qd": ["Quadrupole", {"length": 0.2, "k1": -3.8, "name": "qd"}],
+                    "d3": ["Drift", {"length": 0.5}],
+                    "screen": ["Screen", {"is_active": true, "is_blocking": false, "name": "screen"}]
+                },
+                lattices: {
+                    "fodo": ["d1", "qf", "d2", "qd", "d3", "screen"]
+                }
+            },
+            injector: {
+                root: "injector",
+                elements: {
+                    "d1": ["Drift", {"length": 0.3}],
+                    "sol1": ["Solenoid", {"length": 0.2, "k": 3.5, "name": "sol1"}],
+                    "d2": ["Drift", {"length": 0.3}],
+                    "rfc": ["Cavity", {"length": 1.0, "voltage": 7e6, "phase": -15.0, "frequency": 1.3e9, "name": "rfc"}],
+                    "d3": ["Drift", {"length": 0.4}],
+                    "q1": ["Quadrupole", {"length": 0.15, "k1": 4.5, "name": "q1"}],
+                    "d4": ["Drift", {"length": 0.4}],
+                    "q2": ["Quadrupole", {"length": 0.15, "k1": -4.5, "name": "q2"}],
+                    "d5": ["Drift", {"length": 0.3}],
+                    "bpm1": ["BPM", {"is_active": true, "name": "bpm1"}],
+                    "screen1": ["Screen", {"is_active": true, "is_blocking": false, "name": "screen1"}]
+                },
+                lattices: {
+                    "injector": ["d1", "sol1", "d2", "rfc", "d3", "q1", "d4", "q2", "d5", "bpm1", "screen1"]
+                }
+            }
+        };
+
+        // Application State
+        let currentLatticeJSON = null;
+        let segment = null;
+        let initialParamBeam = null;
+        let initialPartBeam = null;
+        let plotMode = 'xy'; // 'xy', 'xpx', 'ypy'
+        let selectedScreenName = '';
+
+        window.addEventListener('DOMContentLoaded', () => {
+            // Set textarea value default
+            document.getElementById('jsonTextarea').value = JSON.stringify(PRESETS.fodo, null, 2);
+            
+            // Initial load
+            loadPreset();
+            
+            // Set up resize observer for canvas to handle responsive sizing dynamically
+            const canvas = document.getElementById('scatterCanvas');
+            const wrapper = document.getElementById('canvasWrapper');
+            const resizeObserver = new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    const width = entry.contentRect.width;
+                    const height = entry.contentRect.height;
+                    console.log(`ResizeObserver: wrapper size = ${width}x${height}`);
+                    if (width > 0 && height > 0) {
+                        canvas.width = width;
+                        canvas.height = height;
+                        console.log(`ResizeObserver: set canvas size to ${width}x${height}`);
+                        simulateAndDraw();
+                    }
+                }
+            });
+            resizeObserver.observe(wrapper);
+        });
+
+        // Toggle sliding JSON Editor Pane
+        function toggleJSONEditor() {
+            const pane = document.getElementById('jsonEditor');
+            if (pane.style.display === 'flex') {
+                pane.style.display = 'none';
+            } else {
+                pane.style.display = 'flex';
+                // Sync textarea with current state if loaded
+                if (currentLatticeJSON) {
+                    document.getElementById('jsonTextarea').value = JSON.stringify(currentLatticeJSON, null, 2);
+                }
+            }
+        }
+
+        // Load Preset from Select element
+        function loadPreset() {
+            const val = document.getElementById('presetSelect').value;
+            currentLatticeJSON = PRESETS[val];
+            document.getElementById('jsonTextarea').value = JSON.stringify(currentLatticeJSON, null, 2);
+            initializeLatticeAndBeams();
+        }
+
+        // Load custom JSON typed/pasted by user
+        function loadCustomJSON() {
+            try {
+                const text = document.getElementById('jsonTextarea').value;
+                const parsed = JSON.parse(text);
+                if (!parsed.root || !parsed.elements || !parsed.lattices) {
+                    throw new Error("LatticeJSON must contain 'root', 'elements', and 'lattices' keys.");
+                }
+                currentLatticeJSON = parsed;
+                initializeLatticeAndBeams();
+                toggleJSONEditor();
+            } catch (e) {
+                alert(`Error parsing JSON: ${e.message}`);
+            }
+        }
+
+        // Initialize beams and element list from JSON representation
+        function initializeLatticeAndBeams() {
+            // Parse segment
+            segment = cheetah.parseLatticeJSON(currentLatticeJSON);
+            
+            // Standard Initial Beams for demo
+            initialParamBeam = cheetah.ParameterBeam.fromTwiss({
+                beta_x: 2.0, alpha_x: -0.5, emittance_x: 1.5e-8,
+                beta_y: 3.0, alpha_y: 0.2, emittance_y: 1.5e-8,
+                sigma_tau: 2e-5, sigma_p: 2e-3,
+                energy: 1e8, // 100 MeV
+                total_charge: 1e-9 // 1 nC
+            });
+            
+            initialPartBeam = cheetah.ParticleBeam.fromTwiss({
+                num_particles: 500,
+                beta_x: 2.0, alpha_x: -0.5, emittance_x: 1.5e-8,
+                beta_y: 3.0, alpha_y: 0.2, emittance_y: 1.5e-8,
+                sigma_tau: 2e-5, sigma_p: 2e-3,
+                energy: 1e8,
+                total_charge: 1e-9
+            });
+
+            // Populate Sliders
+            populateSliders();
+            
+            // Populate screen selector
+            populateScreenSelect();
+
+            // Run simulation and draw charts
+            simulateAndDraw();
+        }
+
+        // Extract adjustible elements and populate sidebar sliders
+        function populateSliders() {
+            const container = document.getElementById('slidersContainer');
+            container.innerHTML = '';
+            
+            const flattened = segment.flattened().elements;
+            let slidersCount = 0;
+            
+            flattened.forEach(el => {
+                let label = '';
+                let key = '';
+                let min = 0;
+                let max = 0;
+                let step = 0.01;
+                let value = 0;
+                let unit = '';
+                
+                if (el instanceof cheetah.Quadrupole) {
+                    label = `Quadrupole '${el.name}'`;
+                    key = 'k1';
+                    value = el.k1;
+                    min = -15.0;
+                    max = 15.0;
+                    step = 0.05;
+                    unit = ' 1/m²';
+                } else if (el instanceof cheetah.Cavity) {
+                    label = `Cavity Voltage '${el.name}'`;
+                    key = 'voltage';
+                    value = el.voltage;
+                    min = 0.0;
+                    max = 15e6;
+                    step = 100000;
+                    unit = ' V';
+                    
+                    // Also create a phase slider
+                    createSliderItem(container, el, 'phase', `Cavity Phase '${el.name}'`, -180.0, 180.0, 1.0, el.phase, '°');
+                    slidersCount++;
+                } else if (el instanceof cheetah.Solenoid) {
+                    label = `Solenoid strength '${el.name}'`;
+                    key = 'k';
+                    value = el.k;
+                    min = -10.0;
+                    max = 10.0;
+                    step = 0.05;
+                    unit = ' T/m';
+                } else if (el instanceof cheetah.HorizontalCorrector || el instanceof cheetah.VerticalCorrector) {
+                    label = `Corrector Angle '${el.name}'`;
+                    key = 'angle';
+                    value = el.angle * 1000; // millirad
+                    min = -5.0;
+                    max = 5.0;
+                    step = 0.05;
+                    unit = ' mrad';
+                } else if (el instanceof cheetah.CombinedCorrector) {
+                    createSliderItem(container, el, 'horizontal_angle', `Corr Horiz '${el.name}'`, -5.0, 5.0, 0.05, el.horizontal_angle * 1000, ' mrad', true);
+                    createSliderItem(container, el, 'vertical_angle', `Corr Vert '${el.name}'`, -5.0, 5.0, 0.05, el.vertical_angle * 1000, ' mrad', true);
+                    slidersCount += 2;
+                }
+                
+                if (key) {
+                    createSliderItem(container, el, key, label, min, max, step, value, unit);
+                    slidersCount++;
+                }
+            });
+            
+            document.getElementById('tuningCount').innerText = `${slidersCount} sliders`;
+        }
+
+        // Helper to construct slider DOM structure
+        function createSliderItem(container, element, key, label, min, max, step, initialValue, unit, isCorrectorScale = false) {
+            const group = document.createElement('div');
+            group.className = 'control-group';
+            
+            const header = document.createElement('div');
+            header.className = 'control-header';
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'control-name';
+            nameSpan.innerText = label;
+            
+            const valueSpan = document.createElement('span');
+            valueSpan.className = 'control-value';
+            valueSpan.id = `val_${element.name}_${key}`;
+            valueSpan.innerText = initialValue.toFixed(2) + unit;
+            
+            header.appendChild(nameSpan);
+            header.appendChild(valueSpan);
+            
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.className = 'control-slider';
+            slider.min = min;
+            slider.max = max;
+            slider.step = step;
+            slider.value = initialValue;
+            
+            slider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                valueSpan.innerText = val.toFixed(2) + unit;
+                
+                // Update element parameter directly
+                if (isCorrectorScale) {
+                    element[key] = val / 1000.0; // scale from mrad to rad
+                } else {
+                    element[key] = val;
+                }
+                
+                simulateAndDraw();
+            });
+            
+            const limits = document.createElement('div');
+            limits.className = 'control-limits';
+            
+            const minSpan = document.createElement('span');
+            minSpan.innerText = min.toFixed(1);
+            const maxSpan = document.createElement('span');
+            maxSpan.innerText = max.toFixed(1);
+            
+            limits.appendChild(minSpan);
+            limits.appendChild(maxSpan);
+            
+            group.appendChild(header);
+            group.appendChild(slider);
+            group.appendChild(limits);
+            container.appendChild(group);
+        }
+
+        // Populate Screen/BPM list dropdown
+        function populateScreenSelect() {
+            const select = document.getElementById('screenSelect');
+            select.innerHTML = '';
+            
+            const flattened = segment.flattened().elements;
+            let index = 0;
+            
+            // Add Start option
+            const optStart = document.createElement('option');
+            optStart.value = 'START';
+            optStart.innerText = 'Start of Beamline';
+            select.appendChild(optStart);
+
+            flattened.forEach(el => {
+                if (el instanceof cheetah.Screen || el instanceof cheetah.BPM || el instanceof cheetah.Aperture) {
+                    const opt = document.createElement('option');
+                    opt.value = el.name;
+                    opt.innerText = `${el.constructor.name}: ${el.name}`;
+                    select.appendChild(opt);
+                }
+            });
+            
+            // Default selected
+            if (select.children.length > 1) {
+                select.selectedIndex = select.children.length - 1; // last screen
+            }
+            selectedScreenName = select.value;
+        }
+
+        function updateScreenView() {
+            selectedScreenName = document.getElementById('screenSelect').value;
+            simulateAndDraw();
+        }
+
+        function setPlotMode(mode) {
+            plotMode = mode;
+            document.getElementById('tabPart').classList.remove('active');
+            document.getElementById('tabXpx').classList.remove('active');
+            document.getElementById('tabYpy').classList.remove('active');
+            
+            if (mode === 'xy') document.getElementById('tabPart').classList.add('active');
+            if (mode === 'xpx') document.getElementById('tabXpx').classList.add('active');
+            if (mode === 'ypy') document.getElementById('tabYpy').classList.add('active');
+            
+            simulateAndDraw();
+        }
+
+        // Run simulation tracking, render SVG envelopes and Canvas scatter plot
+        function simulateAndDraw() {
+            if (!segment) {
+                console.warn("simulateAndDraw: segment is null or undefined");
+                return;
+            }
+            console.log(`simulateAndDraw: starting. selectedScreenName = ${selectedScreenName}`);
+            
+            // 1. High resolution envelope tracking using ParameterBeam
+            // We split to 0.02m for smooth curves
+            const splitRes = 0.02;
+            const splitSeg = segment.split(splitRes);
+            
+            // Get all beams along split segment
+            const envelopeBeams = splitSeg.get_beams_along_segment(initialParamBeam);
+            
+            // Track particles through standard (un-split) segment for screen diagnostics and speed
+            const flatSegment = segment.flattened();
+            const trackBeams = flatSegment.get_beams_along_segment(initialPartBeam);
+            
+            // Find which beam to show in the Canvas scatter plot
+            let activeDiagnosticBeam = trackBeams[0]; // Start
+            let activeDiagIndex = 0;
+            
+            if (selectedScreenName !== 'START') {
+                const flattened = flatSegment.elements;
+                for (let i = 0; i < flattened.length; i++) {
+                    if (flattened[i].name === selectedScreenName) {
+                        activeDiagnosticBeam = trackBeams[i + 1];
+                        activeDiagIndex = i + 1;
+                        break;
+                    }
+                }
+            }
+
+            // Update Metrics Sidebar
+            updateMetrics(activeDiagnosticBeam);
+            
+            // 2. Draw SVG Envelope Chart
+            drawSVGEnvelope(envelopeBeams, splitSeg);
+            
+            // 3. Draw Canvas Particle Distribution
+            drawCanvasScatter(activeDiagnosticBeam);
+        }
+
+        // Update the textual metric badges
+        function updateMetrics(beam) {
+            // Energy
+            const MeV = beam.energy / 1e6;
+            document.getElementById('valEnergy').innerHTML = `${MeV.toFixed(1)}<span class="metric-unit">MeV</span>`;
+            
+            // Size in micrometers
+            const sxUm = beam.sigma_x * 1e6;
+            const syUm = beam.sigma_y * 1e6;
+            document.getElementById('valRmsX').innerText = sxUm.toFixed(1);
+            document.getElementById('valRmsY').innerText = syUm.toFixed(1);
+            
+            // Charge / Survival
+            let pct = 100.0;
+            if (beam instanceof cheetah.ParticleBeam) {
+                // calculate actual survival probability percentage
+                let sumProb = 0.0;
+                for (let i = 0; i < beam.survival_probabilities.length; i++) {
+                    sumProb += beam.survival_probabilities[i];
+                }
+                pct = (sumProb / beam.survival_probabilities.length) * 100.0;
+            }
+            const nC = beam.total_charge * 1e9;
+            document.getElementById('valCharge').innerHTML = `${nC.toFixed(2)}<span class="metric-unit">nC (${pct.toFixed(1)}%)</span>`;
+            
+            // Position s
+            document.getElementById('valS').innerHTML = `${beam.s.toFixed(2)}<span class="metric-unit">m</span>`;
+        }
+
+        // Render the double envelope SVG plot with element symbols
+        function drawSVGEnvelope(beams, splitSeg) {
+            const svg = document.getElementById('envelopeSvg');
+            svg.innerHTML = '';
+            
+            const width = 1000;
+            const height = 320;
+            const margin = { top: 30, right: 30, bottom: 60, left: 50 };
+            
+            const maxS = beams[beams.length - 1].s;
+            
+            // Find max sigma to scale Y axis
+            let maxSigma = 0.0;
+            beams.forEach(b => {
+                if (b.sigma_x > maxSigma) maxSigma = b.sigma_x;
+                if (b.sigma_y > maxSigma) maxSigma = b.sigma_y;
+            });
+            if (maxSigma === 0) maxSigma = 1e-4; // default scale
+            
+            // Multiply maxSigma by 1.15 to give padding at top/bottom
+            maxSigma *= 1.15;
+            
+            const scaleX = (s) => margin.left + (s / maxS) * (width - margin.left - margin.right);
+            const scaleY = (val) => (height - margin.bottom) / 2 + margin.top / 2 - (val / maxSigma) * ((height - margin.bottom - margin.top) / 2);
+            
+            // Draw axis center line
+            const midY = scaleY(0);
+            const axisLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            axisLine.setAttribute('x1', margin.left);
+            axisLine.setAttribute('y1', midY);
+            axisLine.setAttribute('x2', width - margin.right);
+            axisLine.setAttribute('y2', midY);
+            axisLine.setAttribute('class', 'envelope-axis');
+            svg.appendChild(axisLine);
+            
+            // Build paths for envelopes
+            let pxTop = `M ${scaleX(beams[0].s)} ${scaleY(beams[0].sigma_x)}`;
+            let pxBot = `M ${scaleX(beams[0].s)} ${scaleY(-beams[0].sigma_x)}`;
+            let pyTop = `M ${scaleX(beams[0].s)} ${scaleY(beams[0].sigma_y)}`;
+            let pyBot = `M ${scaleX(beams[0].s)} ${scaleY(-beams[0].sigma_y)}`;
+            
+            let shadeX = `M ${scaleX(beams[0].s)} ${scaleY(beams[0].sigma_x)}`;
+            let shadeY = `M ${scaleX(beams[0].s)} ${scaleY(beams[0].sigma_y)}`;
+            
+            for (let i = 1; i < beams.length; i++) {
+                const xVal = scaleX(beams[i].s);
+                pxTop += ` L ${xVal} ${scaleY(beams[i].sigma_x)}`;
+                pxBot += ` L ${xVal} ${scaleY(-beams[i].sigma_x)}`;
+                pyTop += ` L ${xVal} ${scaleY(beams[i].sigma_y)}`;
+                pyBot += ` L ${xVal} ${scaleY(-beams[i].sigma_y)}`;
+                
+                shadeX += ` L ${xVal} ${scaleY(beams[i].sigma_x)}`;
+                shadeY += ` L ${xVal} ${scaleY(beams[i].sigma_y)}`;
+            }
+            
+            // Close shade paths
+            for (let i = beams.length - 1; i >= 0; i--) {
+                const xVal = scaleX(beams[i].s);
+                shadeX += ` L ${xVal} ${scaleY(-beams[i].sigma_x)}`;
+                shadeY += ` L ${xVal} ${scaleY(-beams[i].sigma_y)}`;
+            }
+            shadeX += ' Z';
+            shadeY += ' Z';
+            
+            // Draw shades
+            const pathShadeX = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathShadeX.setAttribute('d', shadeX);
+            pathShadeX.setAttribute('class', 'envelope-shade-x');
+            svg.appendChild(pathShadeX);
+            
+            const pathShadeY = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathShadeY.setAttribute('d', shadeY);
+            pathShadeY.setAttribute('class', 'envelope-shade-y');
+            svg.appendChild(pathShadeY);
+            
+            // Draw path lines
+            const pathXTop = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathXTop.setAttribute('d', pxTop);
+            pathXTop.setAttribute('class', 'envelope-path-x');
+            svg.appendChild(pathXTop);
+            
+            const pathXBot = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathXBot.setAttribute('d', pxBot);
+            pathXBot.setAttribute('class', 'envelope-path-x');
+            svg.appendChild(pathXBot);
+
+            const pathYTop = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathYTop.setAttribute('d', pyTop);
+            pathYTop.setAttribute('class', 'envelope-path-y');
+            svg.appendChild(pathYTop);
+            
+            const pathYBot = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathYBot.setAttribute('d', pyBot);
+            pathYBot.setAttribute('class', 'envelope-path-y');
+            svg.appendChild(pathYBot);
+            
+            // 3. Draw Lattice Component Bar at the bottom
+            const latticeY = height - 35;
+            const bar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            bar.setAttribute('x', margin.left);
+            bar.setAttribute('y', latticeY);
+            bar.setAttribute('width', width - margin.left - margin.right);
+            bar.setAttribute('height', 20);
+            bar.setAttribute('class', 'lattice-bar');
+            bar.setAttribute('rx', '4');
+            svg.appendChild(bar);
+            
+            // Draw elements inside the bar
+            let currentS = 0.0;
+            const elements = segment.flattened().elements;
+            
+            elements.forEach(el => {
+                const elWidth = el.length;
+                const startX = scaleX(currentS);
+                const endX = scaleX(currentS + elWidth);
+                let drawW = Math.max(2.0, endX - startX); // minimum 2px visible width
+                
+                // Draw graphic block based on element class type
+                let color = 'rgba(255, 255, 255, 0.15)';
+                let symbolH = 14;
+                let symbolY = latticeY + 3;
+                let isLabelable = false;
+                
+                if (el instanceof cheetah.Quadrupole) {
+                    color = el.k1 > 0 ? 'rgba(239, 68, 68, 0.7)' : 'rgba(59, 130, 246, 0.7)'; // Red = QF, Blue = QD
+                    symbolH = 18;
+                    symbolY = latticeY + 1;
+                    isLabelable = true;
+                } else if (el instanceof cheetah.Cavity) {
+                    color = 'rgba(245, 158, 11, 0.75)'; // Gold
+                    symbolH = 16;
+                    symbolY = latticeY + 2;
+                    isLabelable = true;
+                } else if (el instanceof cheetah.Solenoid) {
+                    color = 'rgba(16, 185, 129, 0.7)'; // Green Solenoid
+                    symbolH = 16;
+                    symbolY = latticeY + 2;
+                    isLabelable = true;
+                } else if (el instanceof cheetah.BPM) {
+                    color = 'rgba(255, 255, 255, 0.7)'; // BPM line
+                    drawW = 1.5;
+                    symbolH = 26;
+                    symbolY = latticeY - 3;
+                } else if (el instanceof cheetah.Screen) {
+                    color = 'rgba(236, 72, 153, 0.9)'; // Screen pink line
+                    drawW = 1.5;
+                    symbolH = 26;
+                    symbolY = latticeY - 3;
+                } else if (el instanceof cheetah.Aperture) {
+                    color = 'rgba(242, 142, 0, 0.8)'; // DESY Orange Aperture bounds
+                    drawW = 2.5;
+                    symbolH = 24;
+                    symbolY = latticeY - 2;
+                } else if (el instanceof cheetah.Drift) {
+                    // Drifts are just gray borders
+                    color = 'rgba(255, 255, 255, 0.05)';
+                    symbolH = 10;
+                    symbolY = latticeY + 5;
+                }
+                
+                const block = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                block.setAttribute('x', startX);
+                block.setAttribute('y', symbolY);
+                block.setAttribute('width', drawW);
+                block.setAttribute('height', symbolH);
+                block.setAttribute('fill', color);
+                block.setAttribute('rx', el.length > 0 ? '2' : '0');
+                
+                // Add tooltip events
+                block.addEventListener('mouseenter', (e) => {
+                    const tooltip = document.getElementById('svgTooltip');
+                    tooltip.style.opacity = 1;
+                    tooltip.innerHTML = `<strong>${el.constructor.name}</strong>: ${el.name}<br>s: ${currentS.toFixed(2)} - ${(currentS + elWidth).toFixed(2)} m<br>Length: ${el.length.toFixed(2)} m`;
+                    
+                    const rect = svg.getBoundingClientRect();
+                    const ttX = e.clientX - rect.left + 15;
+                    const ttY = e.clientY - rect.top - 40;
+                    tooltip.style.left = `${ttX}px`;
+                    tooltip.style.top = `${ttY}px`;
+                });
+                block.addEventListener('mouseleave', () => {
+                    document.getElementById('svgTooltip').style.opacity = 0;
+                });
+                
+                svg.appendChild(block);
+                
+                // Add labels for main magnets
+                if (isLabelable && drawW > 12) {
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', startX + drawW / 2);
+                    text.setAttribute('y', latticeY + 34);
+                    text.setAttribute('fill', 'var(--text-secondary)');
+                    text.setAttribute('font-size', '10px');
+                    text.setAttribute('text-anchor', 'middle');
+                    text.textContent = el.name;
+                    svg.appendChild(text);
+                }
+                
+                currentS += elWidth;
+            });
+            
+            // Render grid ticks along the bottom
+            const ticksNum = 6;
+            for (let i = 0; i <= ticksNum; i++) {
+                const sVal = (i / ticksNum) * maxS;
+                const xVal = scaleX(sVal);
+                
+                const tickLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                tickLine.setAttribute('x1', xVal);
+                tickLine.setAttribute('y1', latticeY + 20);
+                tickLine.setAttribute('x2', xVal);
+                tickLine.setAttribute('y2', latticeY + 24);
+                tickLine.setAttribute('stroke', 'rgba(255, 255, 255, 0.2)');
+                tickLine.setAttribute('stroke-width', '1');
+                svg.appendChild(tickLine);
+                
+                const tickText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                tickText.setAttribute('x', xVal);
+                tickText.setAttribute('y', latticeY + 36);
+                tickText.setAttribute('fill', 'var(--text-muted)');
+                tickText.setAttribute('font-size', '10px');
+                tickText.setAttribute('text-anchor', 'middle');
+                tickText.setAttribute('font-family', 'var(--font-mono)');
+                tickText.textContent = `${sVal.toFixed(1)}m`;
+                svg.appendChild(tickText);
+            }
+        }
+
+        // Render the 2D macroparticle distribution plot
+        function drawCanvasScatter(beam) {
+            const canvas = document.getElementById('scatterCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            console.log(`drawCanvasScatter: size = ${width}x${height}, beam type = ${beam ? beam.constructor.name : 'null'}, isParticleBeam = ${beam instanceof cheetah.ParticleBeam}`);
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            if (!(beam instanceof cheetah.ParticleBeam)) {
+                // If it is ParameterBeam, draw a representative gaussian ellipse
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                ctx.fillRect(0, 0, width, height);
+                ctx.fillStyle = '#64748b';
+                ctx.font = '14px Outfit';
+                ctx.textAlign = 'center';
+                ctx.fillText('Select a diagnostic screen or BPM to view particle distribution', width / 2, height / 2);
+                return;
+            }
+            
+            const particles = beam.particles;
+            const survival = beam.survival_probabilities;
+            const N = particles.length;
+            
+            // Choose variables based on plotMode
+            let idxX = 0, idxY = 2; // x vs y
+            let labelX = 'x (mm)', labelY = 'y (mm)';
+            let colorParticle = 'rgba(6, 182, 212, 0.75)'; // Cyan
+            
+            if (plotMode === 'xpx') {
+                idxX = 0; idxY = 1;
+                labelX = 'x (mm)'; labelY = 'p_x (mrad)';
+                colorParticle = 'rgba(242, 142, 0, 0.75)'; // DESY Orange
+            } else if (plotMode === 'ypy') {
+                idxX = 2; idxY = 3;
+                labelX = 'y (mm)'; labelY = 'p_y (mrad)';
+                colorParticle = 'rgba(236, 72, 153, 0.75)'; // Pink
+            }
+            
+            // Find scale limits based on values
+            let maxX = 1e-4, maxY = 1e-4;
+            for (let i = 0; i < N; i++) {
+                if (survival[i] === 0.0) continue;
+                const xVal = Math.abs(particles[i][idxX]);
+                const yVal = Math.abs(particles[i][idxY]);
+                if (xVal > maxX) maxX = xVal;
+                if (yVal > maxY) maxY = yVal;
+            }
+            
+            // Pad limits
+            maxX *= 1.25;
+            maxY *= 1.25;
+            
+            const scaleFactorX = (width - 60) / 2 / maxX;
+            const scaleFactorY = (height - 60) / 2 / maxY;
+            
+            const cx = width / 2;
+            const cy = height / 2;
+            
+            // Draw grid lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+            ctx.lineWidth = 1;
+            
+            // Crosshairs
+            ctx.beginPath();
+            ctx.moveTo(0, cy); ctx.lineTo(width, cy);
+            ctx.moveTo(cx, 0); ctx.lineTo(cx, height);
+            ctx.stroke();
+            
+            // Box boundaries
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.strokeRect(30, 30, width - 60, height - 60);
+            
+            // Draw ticks & labels
+            ctx.fillStyle = '#64748b';
+            ctx.font = '10px Source Code Pro';
+            ctx.textAlign = 'center';
+            
+            // X-axis limit labels (convert coordinates to mm or mrad for display)
+            const multiplierX = idxX === 0 || idxX === 2 ? 1000.0 : 1000.0; // mm or mrad
+            const multiplierY = idxY === 0 || idxY === 2 ? 1000.0 : 1000.0;
+            
+            ctx.fillText((maxX * multiplierX).toFixed(1), width - 35, cy + 15);
+            ctx.fillText((-maxX * multiplierX).toFixed(1), 35, cy + 15);
+            
+            ctx.textAlign = 'right';
+            ctx.fillText((maxY * multiplierY).toFixed(1), cx - 10, 40);
+            ctx.fillText((-maxY * multiplierY).toFixed(1), cx - 10, height - 35);
+            
+            // Axis labels
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '12px Outfit';
+            ctx.textAlign = 'center';
+            ctx.fillText(labelX, cx, height - 10);
+            
+            ctx.save();
+            ctx.translate(15, cy);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText(labelY, 0, 0);
+            ctx.restore();
+            
+            // Draw particles!
+            ctx.fillStyle = colorParticle;
+            for (let i = 0; i < N; i++) {
+                if (survival[i] === 0.0) continue;
+                
+                const pxVal = cx + particles[i][idxX] * scaleFactorX;
+                const pyVal = cy - particles[i][idxY] * scaleFactorY; // canvas inversion
+                
+                ctx.beginPath();
+                ctx.arc(pxVal, pyVal, 2.0, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        }
+    </script>
+</body>
+</html>
