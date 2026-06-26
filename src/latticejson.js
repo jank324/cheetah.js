@@ -3,7 +3,9 @@
 import { Drift } from "./drift.js";
 import { Quadrupole } from "./quadrupole.js";
 import { Dipole } from "./dipole.js";
-import { HorizontalCorrector, VerticalCorrector, CombinedCorrector } from "./corrector.js";
+import { HorizontalCorrector } from "./horizontal_corrector.js";
+import { VerticalCorrector } from "./vertical_corrector.js";
+import { CombinedCorrector } from "./combined_corrector.js";
 import { Cavity } from "./cavity.js";
 import { BPM } from "./bpm.js";
 import { Screen } from "./screen.js";
