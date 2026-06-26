@@ -356,6 +356,8 @@
             flex-direction: column;
             gap: 0.75rem;
             position: relative;
+            height: 100%;
+            min-height: 280px; /* Fallback min height */
         }
 
         .canvas-wrapper {
@@ -385,6 +387,7 @@
             flex-direction: column;
             gap: 1.25rem;
             overflow-y: auto;
+            height: 100%;
         }
 
         .metric-item {
@@ -1337,7 +1340,7 @@
                 // If it is ParameterBeam, draw a representative gaussian ellipse
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
                 ctx.fillRect(0, 0, width, height);
-                ctx.fillStyle = 'var(--text-muted)';
+                ctx.fillStyle = '#64748b';
                 ctx.font = '14px Outfit';
                 ctx.textAlign = 'center';
                 ctx.fillText('Select a diagnostic screen or BPM to view particle distribution', width / 2, height / 2);
@@ -1398,7 +1401,7 @@
             ctx.strokeRect(30, 30, width - 60, height - 60);
             
             // Draw ticks & labels
-            ctx.fillStyle = 'var(--text-muted)';
+            ctx.fillStyle = '#64748b';
             ctx.font = '10px Source Code Pro';
             ctx.textAlign = 'center';
             
@@ -1414,7 +1417,7 @@
             ctx.fillText((-maxY * multiplierY).toFixed(1), cx - 10, height - 35);
             
             // Axis labels
-            ctx.fillStyle = 'var(--text-secondary)';
+            ctx.fillStyle = '#94a3b8';
             ctx.font = '12px Outfit';
             ctx.textAlign = 'center';
             ctx.fillText(labelX, cx, height - 10);
