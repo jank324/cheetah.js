@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cheetah.js - 3D Lattice & Twiss Visualizer</title>
+    
+    <!-- Google Fonts: Outfit (headings), Inter (body), Source Code Pro (mono) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;500;600;700;800&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Three.js and plugins via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #08090d;
+            --panel-bg: rgba(17, 18, 25, 0.75);
+            --card-bg: rgba(26, 27, 38, 0.45);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(0, 166, 235, 0.15);
+            
+            --accent-primary: hsl(198, 100%, 46%);      /* DESY Blue (#00A6EB) */
+            --accent-primary-hover: hsl(198, 100%, 55%);
+            --accent-cyan: hsl(190, 95%, 48%);         /* X parameters / horizontal */
+            --accent-pink: hsl(330, 95%, 60%);         /* Y parameters / vertical */
+            --accent-gold: hsl(45, 95%, 55%);          /* Cavity / RF */
+            --accent-green: hsl(150, 85%, 45%);        /* Solenoid */
+            --accent-orange: hsl(25, 95%, 50%);         /* Correctors / Apertures */
+            
+            --text-main: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            
+            --font-main: 'Outfit', sans-serif;
+            --font-mono: 'Source Code Pro', monospace;
+            
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            min-height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(0, 166, 235, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(242, 142, 0, 0.05) 0%, transparent 40%);
+        }
+
+        header {
+            padding: 1.25rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            backdrop-filter: blur(10px);
+            background-color: rgba(8, 9, 13, 0.5);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .desy-logo-svg {
+            height: 28px;
+            color: #ffffff;
+            display: block;
+        }
+
+        .header-logo h1 {
+            font-size: 1.35rem;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #fff, var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-logo span {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-family: var(--font-mono);
+        }
+
+        .header-links {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .header-links a, .header-links button {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            background: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: var(--font-main);
+        }
+
+        .header-links a:hover, .header-links button:hover {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.05);
+            border-color: var(--border-color);
+        }
+
+        .header-links .tab-btn.active {
+            color: #ffffff;
+            background-color: rgba(0, 166, 235, 0.15);
+            border-color: rgba(0, 166, 235, 0.3);
+            font-weight: 500;
+        }
+
+        /* Dashboard Container Layout */
+        .dashboard {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            height: calc(100vh - 72px);
+            overflow: hidden;
+        }
+
+        /* Sidebar Controls Panel */
+        .sidebar {
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            overflow-y: auto;
+            backdrop-filter: blur(15px);
+        }
+
+        .section-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .preset-select {
+            width: 100%;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-family: var(--font-main);
+            font-size: 0.95rem;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .preset-select:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 10px rgba(0, 166, 235, 0.15);
+        }
+
+        .controls-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .control-group {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .control-group:hover {
+            border-color: rgba(255, 255, 255, 0.12);
+            background-color: rgba(26, 27, 38, 0.6);
+        }
+
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .control-name {
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        .control-value {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent-primary);
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+        }
+
+        .control-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            margin: 0.5rem 0;
+        }
+
+        .control-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--accent-primary);
+            transition: transform 0.1s ease;
+        }
+
+        .control-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .control-limits {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        /* Main Workspace: 3D Scene Viewport */
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            height: 100%;
+            overflow: hidden;
+            background-color: rgba(0, 0, 0, 0.15);
+            position: relative;
+        }
+
+        .viewport-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+        }
+
+        #threeCanvasContainer {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* 3D Loading Overlay */
+        .loading-overlay {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            background-color: rgba(17, 18, 25, 0.85);
+            border: 1px solid var(--border-color);
+            padding: 0.65rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            z-index: 5;
+            box-shadow: var(--shadow-md);
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            opacity: 0;
+        }
+
+        .loading-overlay.visible {
+            opacity: 1;
+        }
+
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s infinite linear;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 3D Viewport Controls / Legend Overlay */
+        .legend-overlay {
+            position: absolute;
+            bottom: 1rem;
+            left: 1rem;
+            background-color: rgba(17, 18, 25, 0.85);
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            z-index: 5;
+            box-shadow: var(--shadow-lg);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .legend-title {
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 0.25rem;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .legend-line {
+            width: 24px;
+            height: 4px;
+            border-radius: 2px;
+        }
+
+        .legend-color-box {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Right Panel: Metrics/Stats Card */
+        .metrics-card {
+            background-color: var(--panel-bg);
+            border-left: 1px solid var(--border-color);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            overflow-y: auto;
+            backdrop-filter: blur(15px);
+            z-index: 2;
+        }
+
+        .metric-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            padding-bottom: 0.75rem;
+        }
+
+        .metric-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+        }
+
+        .metric-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text-main);
+            font-family: var(--font-main);
+            display: flex;
+            align-items: baseline;
+            gap: 0.15rem;
+        }
+
+        .metric-unit {
+            font-size: 0.8rem;
+            font-weight: 400;
+            color: var(--text-muted);
+            margin-left: 0.15rem;
+        }
+
+        .probe-highlight-row {
+            background-color: rgba(0, 166, 235, 0.04);
+            border: 1px solid rgba(0, 166, 235, 0.15);
+            border-radius: 8px;
+            padding: 0.75rem;
+        }
+
+        /* Sliding JSON Editor Modal */
+        .json-editor {
+            position: fixed;
+            top: 72px;
+            right: 0;
+            bottom: 0;
+            width: 500px;
+            background-color: rgba(17, 18, 25, 0.95);
+            border-left: 1px solid var(--border-color);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            padding: 1.5rem;
+            gap: 1rem;
+            box-shadow: var(--shadow-lg);
+            backdrop-filter: blur(20px);
+        }
+
+        .json-textarea {
+            flex: 1;
+            background-color: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            resize: none;
+            outline: none;
+            line-height: 1.5;
+        }
+
+        .json-textarea:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .json-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            font-family: var(--font-main);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 166, 235, 0.2);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: rgba(255, 255, 255, 0.06);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-logo">
+            <svg class="desy-logo-svg" viewBox="0 0 100 32" height="28" fill="#ffffff" style="display: block;">
+                <text x="0" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-weight="900" font-size="28" letter-spacing="-0.5">DESY</text>
+                <circle cx="82" cy="23" r="4.5" fill="#F28E00" />
+            </svg>
+            <div style="width: 1px; height: 20px; background-color: var(--border-color); margin: 0 0.5rem;"></div>
+            <h1>Cheetah.js</h1>
+            <span>v0.1.0 (JS Port)</span>
+        </div>
+        <div class="header-links">
+            <a href="index.html" class="tab-btn">2D Dashboard</a>
+            <a href="3d.html" class="tab-btn active">3D Viewer</a>
+            <button class="tab-btn" style="margin-left: 0.5rem;" onclick="toggleJSONEditor()">LatticeJSON Editor</button>
+            <a href="https://github.com/desy-ml/cheetah" target="_blank">Cheetah Python</a>
+        </div>
+    </header>
+
+    <div class="dashboard">
+        <!-- Sidebar: Presets and Slider Controls -->
+        <div class="sidebar">
+            <div>
+                <h3 class="section-title">Lattice Design Presets</h3>
+                <select id="presetSelect" class="preset-select" onchange="loadPreset()">
+                    <option value="fodo">FODO Focussing Cell</option>
+                    <option value="injector">RF Injector Section</option>
+                </select>
+            </div>
+
+            <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <h3 class="section-title">
+                    <span>Lattice Tuning Sliders</span>
+                    <span style="font-family: var(--font-mono); font-size: 0.75rem;" id="tuningCount">0 sliders</span>
+                </h3>
+                <div id="slidersContainer" class="controls-list" style="flex: 1; overflow-y: auto; padding-right: 0.25rem;">
+                    <!-- Sliders dynamically populated -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Workspace: 3D Viewer & Stats -->
+        <div class="workspace">
+            <div class="viewport-container">
+                <!-- Loading Asset Overlay -->
+                <div id="loadingOverlay" class="loading-overlay">
+                    <div class="spinner"></div>
+                    <span id="loadingMessage">Loading 3D Meshes...</span>
+                </div>
+                
+                <!-- Three.js Canvas -->
+                <div id="threeCanvasContainer"></div>
+
+                <!-- 3D Visualization Legend -->
+                <div class="legend-overlay">
+                    <div class="legend-title">Orthogonal 3D Twiss Plots</div>
+                    <div class="legend-item">
+                        <div class="legend-line" style="background-color: var(--accent-cyan);"></div>
+                        <span style="color: var(--accent-cyan); font-weight: 500;">&beta;<sub>x</sub> (Horizontal Beta)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-line" style="background-color: var(--accent-cyan); opacity: 0.4; height: 2px;"></div>
+                        <span style="color: var(--accent-cyan); opacity: 0.8;">&alpha;<sub>x</sub> (Horizontal Alpha)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-line" style="background-color: var(--accent-pink);"></div>
+                        <span style="color: var(--accent-pink); font-weight: 500;">&beta;<sub>y</sub> (Vertical Beta)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-line" style="background-color: var(--accent-pink); opacity: 0.4; height: 2px;"></div>
+                        <span style="color: var(--accent-pink); opacity: 0.8;">&alpha;<sub>y</sub> (Vertical Alpha)</span>
+                    </div>
+                    
+                    <div class="legend-title" style="margin-top: 0.5rem;">Lattice 3D Meshes</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.75rem;">
+                        <div class="legend-item">
+                            <div class="legend-color-box" style="background-color: rgba(239, 68, 68, 0.7);"></div>
+                            <span>QF Quad</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color-box" style="background-color: rgba(59, 130, 246, 0.7);"></div>
+                            <span>QD Quad</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color-box" style="background-color: rgba(0, 166, 235, 0.7);"></div>
+                            <span>Dipole</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color-box" style="background-color: rgba(245, 158, 11, 0.75);"></div>
+                            <span>RF Cavity</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color-box" style="background-color: rgba(16, 185, 129, 0.7);"></div>
+                            <span>Solenoid</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color-box" style="background-color: rgba(242, 142, 0, 0.7);"></div>
+                            <span>Correctors</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Probe & Overall Metrics -->
+            <div class="metrics-card">
+                <!-- 3D Probe slider group -->
+                <div class="control-group probe-highlight-row" style="margin-bottom: 0.5rem;">
+                    <div class="control-header">
+                        <span class="control-name" style="color: var(--accent-primary); font-weight: 600;">3D Beam Probe</span>
+                        <span class="control-value" id="probeSVal">0.00 m</span>
+                    </div>
+                    <input type="range" class="control-slider" id="probeSlider" min="0" max="10" step="0.01" value="0" oninput="updateProbePosition()">
+                    <span style="font-size: 0.7rem; color: var(--text-muted);">Slide to move the glowing ring along the beamline</span>
+                </div>
+
+                <h3 class="section-title">Probe twiss parameters</h3>
+                <div class="metric-item">
+                    <div class="metric-label">Probe Location (s)</div>
+                    <div class="metric-value" id="valProbeS">0.00<span class="metric-unit">m</span></div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">Horizontal Beta (&beta;<sub>x</sub>) / Alpha (&alpha;<sub>x</sub>)</div>
+                    <div class="metric-value" style="font-size: 1.25rem;">
+                        <span style="color: var(--accent-cyan);" id="valBetaX">0.00</span> / 
+                        <span style="color: var(--accent-cyan); opacity: 0.85;" id="valAlphaX">0.00</span>
+                        <span class="metric-unit">m</span>
+                    </div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">Vertical Beta (&beta;<sub>y</sub>) / Alpha (&alpha;<sub>y</sub>)</div>
+                    <div class="metric-value" style="font-size: 1.25rem;">
+                        <span style="color: var(--accent-pink);" id="valBetaY">0.00</span> / 
+                        <span style="color: var(--accent-pink); opacity: 0.85;" id="valAlphaY">0.00</span>
+                        <span class="metric-unit">m</span>
+                    </div>
+                </div>
+
+                <h3 class="section-title" style="margin-top: 0.5rem;">Lattice statistics</h3>
+                <div class="metric-item">
+                    <div class="metric-label">Beam Energy</div>
+                    <div class="metric-value" id="valEnergy">100.0<span class="metric-unit">MeV</span></div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">Total Length</div>
+                    <div class="metric-value" id="valLength">0.00<span class="metric-unit">m</span></div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">Total Charge</div>
+                    <div class="metric-value" id="valCharge">1.00<span class="metric-unit">nC</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LatticeJSON Slide-out Editor -->
+    <div class="json-editor" id="jsonEditor">
+        <h3 class="section-title">LatticeJSON Editor</h3>
+        <textarea class="json-textarea" id="jsonTextarea" spellcheck="false"></textarea>
+        <div class="json-actions">
+            <button class="btn btn-secondary" onclick="toggleJSONEditor()">Close</button>
+            <button class="btn btn-primary" onclick="loadCustomJSON()">Load & Simulate</button>
+        </div>
+    </div>
+
+    <!-- Load bundled cheetah.js -->
+    <script src="../dist/cheetah.js"></script>
+
+    <script>
+        // Global error logging for debugging
+        window.onerror = function (message, source, lineno, colno, error) {
+            console.error("Global JS Error:", message, "at", source, ":", lineno, ":", colno, error);
+            alert(`JavaScript Error: ${message}\nSource: ${source}\nLine: ${lineno}:${colno}`);
+            return false;
+        };
+
+        // Preset Definitions
+        const PRESETS = {
+            fodo: {
+                root: "fodo",
+                elements: {
+                    "d1": ["Drift", {"length": 0.5}],
+                    "qf": ["Quadrupole", {"length": 0.2, "k1": 3.8, "name": "qf"}],
+                    "d2": ["Drift", {"length": 1.0}],
+                    "qd": ["Quadrupole", {"length": 0.2, "k1": -3.8, "name": "qd"}],
+                    "d3": ["Drift", {"length": 0.5}],
+                    "screen": ["Screen", {"is_active": true, "is_blocking": false, "name": "screen"}]
+                },
+                lattices: {
+                    "fodo": ["d1", "qf", "d2", "qd", "d3", "screen"]
+                }
+            },
+            injector: {
+                root: "injector",
+                elements: {
+                    "d1": ["Drift", {"length": 0.3}],
+                    "sol1": ["Solenoid", {"length": 0.2, "k": 3.5, "name": "sol1"}],
+                    "d2": ["Drift", {"length": 0.3}],
+                    "rfc": ["Cavity", {"length": 1.0, "voltage": 7e6, "phase": -15.0, "frequency": 1.3e9, "name": "rfc"}],
+                    "d3": ["Drift", {"length": 0.4}],
+                    "q1": ["Quadrupole", {"length": 0.15, "k1": 4.5, "name": "q1"}],
+                    "d4": ["Drift", {"length": 0.4}],
+                    "q2": ["Quadrupole", {"length": 0.15, "k1": -4.5, "name": "q2"}],
+                    "d5": ["Drift", {"length": 0.3}],
+                    "bpm1": ["BPM", {"is_active": true, "name": "bpm1"}],
+                    "screen1": ["Screen", {"is_active": true, "is_blocking": false, "name": "screen1"}]
+                },
+                lattices: {
+                    "injector": ["d1", "sol1", "d2", "rfc", "d3", "q1", "d4", "q2", "d5", "bpm1", "screen1"]
+                }
+            }
+        };
+
+        // Application State
+        let currentLatticeJSON = null;
+        let segment = null;
+        let initialParamBeam = null;
+        let trackedBeams = []; // Stores high-res beams for probing
+        let probeS = 0.0;      // Current probe position s (m)
+
+        // Three.js State
+        let scene, camera, renderer, controls;
+        let latticeGroup;     // Group containing element 3D meshes
+        let curvesGroup;      // Group containing Twiss curves lines/tubes
+        let probeRingMesh;    // 3D mesh highlighting the probe position
+        let gridHorizontal, gridVertical; // Intersecting plane grids
+        
+        // Asset Manager Cache
+        const ASSET_BASE_URL = 'https://raw.githubusercontent.com/desy-ml/3d-assets/v1.2.0/';
+        const assetCache = {};
+        const gltfLoader = new THREE.GLTFLoader();
+        let activeLoadsCount = 0;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('jsonTextarea').value = JSON.stringify(PRESETS.fodo, null, 2);
+            
+            // Initialize Three.js viewport
+            initThree();
+
+            // Initial load
+            loadPreset();
+            
+            // Setup resize observer
+            const container = document.getElementById('threeCanvasContainer');
+            const resizeObserver = new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    const width = entry.contentRect.width;
+                    const height = entry.contentRect.height;
+                    if (width > 0 && height > 0) {
+                        camera.aspect = width / height;
+                        camera.updateProjectionMatrix();
+                        renderer.setSize(width, height);
+                    }
+                }
+            });
+            resizeObserver.observe(container);
+            
+            // Animate loop
+            animate();
+        });
+
+        // Initialize Three.js Scene, Camera, Lights, and Renderer
+        function initThree() {
+            const container = document.getElementById('threeCanvasContainer');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // 1. Create Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x08090d);
+            scene.fog = new THREE.FogExp2(0x08090d, 0.05);
+
+            // 2. Create Camera
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+            camera.position.set(4, 3, -2); // Positioned to look along the z-axis from an angle
+
+            // 3. Create Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // 4. Create OrbitControls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 + 0.1; // Limit panning under the floor
+            controls.minDistance = 1;
+            controls.maxDistance = 40;
+
+            // 5. Add Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
+            dirLight1.position.set(5, 10, 5);
+            dirLight1.castShadow = true;
+            dirLight1.shadow.mapSize.width = 1024;
+            dirLight1.shadow.mapSize.height = 1024;
+            dirLight1.shadow.camera.near = 0.5;
+            dirLight1.shadow.camera.far = 25;
+            dirLight1.shadow.camera.left = -6;
+            dirLight1.shadow.camera.right = 6;
+            dirLight1.shadow.camera.top = 6;
+            dirLight1.shadow.camera.bottom = -6;
+            scene.add(dirLight1);
+
+            const dirLight2 = new THREE.DirectionalLight(0x00a6eb, 0.2); // DESY Blue fill light
+            dirLight2.position.set(-5, -5, -5);
+            scene.add(dirLight2);
+
+            const pointLight = new THREE.PointLight(0xffffff, 0.4, 15);
+            pointLight.position.set(0, 3, 0);
+            scene.add(pointLight);
+
+            // 6. Create Groups for dynamic elements
+            latticeGroup = new THREE.Group();
+            scene.add(latticeGroup);
+
+            curvesGroup = new THREE.Group();
+            scene.add(curvesGroup);
+
+            // 7. Create Probe Indicator (glowing ring)
+            const ringGeom = new THREE.TorusGeometry(0.5, 0.015, 8, 48);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0x00a6eb, transparent: true, opacity: 0.85 });
+            probeRingMesh = new THREE.Mesh(ringGeom, ringMat);
+            probeRingMesh.rotation.x = Math.PI / 2; // Flat on horizontal plane
+            scene.add(probeRingMesh);
+
+            // Add center target point inside the ring
+            const innerSphere = new THREE.Mesh(
+                new THREE.SphereGeometry(0.04, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0x00a6eb })
+            );
+            probeRingMesh.add(innerSphere);
+        }
+
+        // Toggle sliding JSON Editor Pane
+        function toggleJSONEditor() {
+            const pane = document.getElementById('jsonEditor');
+            if (pane.style.display === 'flex') {
+                pane.style.display = 'none';
+            } else {
+                pane.style.display = 'flex';
+                if (currentLatticeJSON) {
+                    document.getElementById('jsonTextarea').value = JSON.stringify(currentLatticeJSON, null, 2);
+                }
+            }
+        }
+
+        // Load Preset from Select element
+        function loadPreset() {
+            const val = document.getElementById('presetSelect').value;
+            currentLatticeJSON = PRESETS[val];
+            document.getElementById('jsonTextarea').value = JSON.stringify(currentLatticeJSON, null, 2);
+            initializeLatticeAndBeams();
+        }
+
+        // Load custom JSON entered into editor
+        function loadCustomJSON() {
+            try {
+                const parsed = JSON.parse(document.getElementById('jsonTextarea').value);
+                if (!parsed.root || !parsed.elements || !parsed.lattices) {
+                    throw new Error("LatticeJSON must contain 'root', 'elements', and 'lattices' keys.");
+                }
+                currentLatticeJSON = parsed;
+                initializeLatticeAndBeams();
+                toggleJSONEditor();
+            } catch (e) {
+                alert(`Error parsing JSON: ${e.message}`);
+            }
+        }
+
+        // Initialize beams and element list from JSON representation
+        function initializeLatticeAndBeams() {
+            segment = cheetah.parseLatticeJSON(currentLatticeJSON);
+            
+            // Standard Initial Beams for demo
+            initialParamBeam = cheetah.ParameterBeam.fromTwiss({
+                beta_x: 2.0, alpha_x: -0.5, emittance_x: 1.5e-8,
+                beta_y: 3.0, alpha_y: 0.2, emittance_y: 1.5e-8,
+                sigma_tau: 2e-5, sigma_p: 2e-3,
+                energy: 1e8, // 100 MeV
+                total_charge: 1e-9 // 1 nC
+            });
+
+            // Populate Sliders
+            populateSliders();
+            
+            // Build intersecting grid planes based on lattice length
+            rebuildGridPlanes();
+
+            // Run simulation and draw 3D scene
+            simulateAndDraw();
+            
+            // Set probe slider bounds based on total length
+            const totalLength = segment.length;
+            const probeSlider = document.getElementById('probeSlider');
+            probeSlider.max = totalLength;
+            probeSlider.value = (totalLength / 2).toFixed(2);
+            updateProbePosition();
+            
+            // Adjust camera target to center of the beamline
+            controls.target.set(0, 0, totalLength / 2);
+            camera.position.set(3, 2, -2 + totalLength / 4);
+            controls.update();
+        }
+
+        // Extract adjustible elements and populate sidebar sliders
+        function populateSliders() {
+            const container = document.getElementById('slidersContainer');
+            container.innerHTML = '';
+            
+            const flattened = segment.flattened().elements;
+            let slidersCount = 0;
+            
+            flattened.forEach((el, index) => {
+                // We create sliders for adjustable properties
+                if (el instanceof cheetah.Quadrupole) {
+                    createSliderItem(container, `k1`, el.k1, -15.0, 15.0, 0.05, `Quad ${el.name} (k1)`, `m⁻²`, (val) => {
+                        el.k1 = val;
+                        simulateAndDraw();
+                    });
+                    slidersCount++;
+                } else if (el instanceof cheetah.Cavity) {
+                    createSliderItem(container, `voltage`, el.voltage, 0, 15e6, 0.05e6, `Cavity ${el.name} (Volt)`, `MV`, (val) => {
+                        el.voltage = val;
+                        simulateAndDraw();
+                    }, 1e6);
+                    createSliderItem(container, `phase`, el.phase, -180.0, 180.0, 1.0, `Cavity ${el.name} (Phase)`, `deg`, (val) => {
+                        el.phase = val;
+                        simulateAndDraw();
+                    });
+                    slidersCount += 2;
+                } else if (el instanceof cheetah.Solenoid) {
+                    createSliderItem(container, `k`, el.k, -10.0, 10.0, 0.1, `Solenoid ${el.name} (k)`, `T/m`, (val) => {
+                        el.k = val;
+                        simulateAndDraw();
+                    });
+                    slidersCount++;
+                } else if (el instanceof cheetah.HorizontalCorrector || el instanceof cheetah.VerticalCorrector) {
+                    createSliderItem(container, `angle`, el.angle, -0.005, 0.005, 0.0001, `${el.constructor.name === 'HorizontalCorrector' ? 'H' : 'V'} Corrector ${el.name}`, `mrad`, (val) => {
+                        el.angle = val;
+                        simulateAndDraw();
+                    }, 1e-3);
+                    slidersCount++;
+                } else if (el instanceof cheetah.CombinedCorrector) {
+                    createSliderItem(container, `horizontal_angle`, el.horizontal_angle, -0.005, 0.005, 0.0001, `Combined ${el.name} (H)`, `mrad`, (val) => {
+                        el.horizontal_angle = val;
+                        simulateAndDraw();
+                    }, 1e-3);
+                    createSliderItem(container, `vertical_angle`, el.vertical_angle, -0.005, 0.005, 0.0001, `Combined ${el.name} (V)`, `mrad`, (val) => {
+                        el.vertical_angle = val;
+                        simulateAndDraw();
+                    }, 1e-3);
+                    slidersCount += 2;
+                }
+            });
+            
+            document.getElementById('tuningCount').innerText = `${slidersCount} sliders`;
+        }
+
+        // Helper to generate a slider element
+        function createSliderItem(parent, key, value, min, max, step, title, unit, onchange, displayDivisor = 1.0) {
+            const group = document.createElement('div');
+            group.className = 'control-group';
+            
+            const header = document.createElement('div');
+            header.className = 'control-header';
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'control-name';
+            nameSpan.innerText = title;
+            
+            const valSpan = document.createElement('span');
+            valSpan.className = 'control-value';
+            valSpan.innerText = `${(value / displayDivisor).toFixed(2)}${unit}`;
+            
+            header.appendChild(nameSpan);
+            header.appendChild(valSpan);
+            
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.className = 'control-slider';
+            slider.min = min;
+            slider.max = max;
+            slider.step = step;
+            slider.value = value;
+            
+            slider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                valSpan.innerText = `${(val / displayDivisor).toFixed(2)}${unit}`;
+                onchange(val);
+            });
+            
+            const limits = document.createElement('div');
+            limits.className = 'control-limits';
+            
+            const minSpan = document.createElement('span');
+            minSpan.innerText = `${(min / displayDivisor).toFixed(1)}`;
+            
+            const maxSpan = document.createElement('span');
+            maxSpan.innerText = `${(max / displayDivisor).toFixed(1)}`;
+            
+            limits.appendChild(minSpan);
+            limits.appendChild(maxSpan);
+            
+            group.appendChild(header);
+            group.appendChild(slider);
+            group.appendChild(limits);
+            
+            parent.appendChild(group);
+        }
+
+        // Build/update intersecting gridded planes representing horizontal and vertical tracking planes
+        function rebuildGridPlanes() {
+            if (gridHorizontal) scene.remove(gridHorizontal);
+            if (gridVertical) scene.remove(gridVertical);
+
+            const totalLength = segment.length;
+            const gridLen = Math.max(totalLength, 1.0);
+            
+            // Grid helper center sits at totalLength / 2
+            const centerZ = totalLength / 2;
+
+            // 1. Horizontal Plane Grid (XZ plane)
+            // THREE.GridHelper lies in the XZ plane by default
+            gridHorizontal = new THREE.GridHelper(gridLen, Math.ceil(gridLen * 2), 0x334155, 0x1e293b);
+            gridHorizontal.position.set(0, 0, centerZ);
+            gridHorizontal.scale.set(1, 1, 1);
+            scene.add(gridHorizontal);
+
+            // 2. Vertical Plane Grid (YZ plane)
+            // We rotate XZ grid helper to YZ
+            gridVertical = new THREE.GridHelper(gridLen, Math.ceil(gridLen * 2), 0x475569, 0x1e293b);
+            gridVertical.rotation.z = Math.PI / 2; // Rotate around z to align vertically
+            gridVertical.position.set(0, 0, centerZ);
+            scene.add(gridVertical);
+        }
+
+        // Asset Loader with caching and fallback loading states
+        function getOrLoadAsset(assetName, onLoaded) {
+            if (assetCache[assetName]) {
+                onLoaded(assetCache[assetName].clone());
+                return;
+            }
+            
+            // Update overlay display
+            activeLoadsCount++;
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.add('visible');
+            document.getElementById('loadingMessage').innerText = `Loading 3D Meshes (${activeLoadsCount} left)...`;
+            
+            gltfLoader.load(ASSET_BASE_URL + assetName, (gltf) => {
+                assetCache[assetName] = gltf.scene;
+                activeLoadsCount--;
+                if (activeLoadsCount === 0) {
+                    overlay.classList.remove('visible');
+                } else {
+                    document.getElementById('loadingMessage').innerText = `Loading 3D Meshes (${activeLoadsCount} left)...`;
+                }
+                
+                // Traverse loaded gltf scene to enable shadows
+                gltf.scene.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+
+                onLoaded(gltf.scene.clone());
+            }, undefined, (error) => {
+                console.error(`Could not load GLB asset ${assetName}, falling back:`, error);
+                activeLoadsCount--;
+                if (activeLoadsCount === 0) {
+                    overlay.classList.remove('visible');
+                }
+                onLoaded(null);
+            });
+        }
+
+        // Rebuild the physical 3D model representation of the lattice elements
+        function rebuild3DLattice() {
+            // Remove previous lattice elements
+            while(latticeGroup.children.length > 0) {
+                latticeGroup.remove(latticeGroup.children[0]);
+            }
+
+            let currentS = 0.0;
+            const elements = segment.flattened().elements;
+
+            elements.forEach(el => {
+                const elLength = el.length;
+                const centerS = currentS + elLength / 2.0;
+                
+                // Position along the longitudinal z-axis
+                const zPos = centerS;
+
+                if (el instanceof cheetah.Drift) {
+                    // Drifts are visualized as subtle hollow wireframe cylinders
+                    if (elLength > 0) {
+                        const geom = new THREE.CylinderGeometry(0.1, 0.1, elLength, 8, 1, true);
+                        const mat = new THREE.MeshBasicMaterial({ color: 0x334155, wireframe: true, transparent: true, opacity: 0.15 });
+                        const mesh = new THREE.Mesh(geom, mat);
+                        mesh.rotation.x = Math.PI / 2; // Cylinder points along Z-axis
+                        mesh.position.set(0, 0, zPos);
+                        latticeGroup.add(mesh);
+                    }
+                } else if (el instanceof cheetah.Quadrupole) {
+                    // 1. Procedural placeholder (Red = QF, Blue = QD)
+                    const color = el.k1 > 0 ? 0xef4444 : 0x3b82f6;
+                    const geom = new THREE.CylinderGeometry(0.24, 0.24, elLength, 16);
+                    const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.4, metalness: 0.5 });
+                    const placeholder = new THREE.Mesh(geom, mat);
+                    placeholder.rotation.x = Math.PI / 2;
+                    placeholder.position.set(0, 0, zPos);
+                    placeholder.castShadow = true;
+                    placeholder.receiveShadow = true;
+                    latticeGroup.add(placeholder);
+
+                    // 2. Load official GLB model asynchronously
+                    getOrLoadAsset('quadrupole.glb', (glbScene) => {
+                        if (!glbScene) return;
+                        latticeGroup.remove(placeholder);
+                        
+                        // Scale GLTF to match element length
+                        const box = new THREE.Box3().setFromObject(glbScene);
+                        const size = new THREE.Vector3();
+                        box.getSize(size);
+                        
+                        const visualScale = elLength / size.z;
+                        glbScene.scale.set(visualScale, visualScale, visualScale);
+                        glbScene.position.set(0, 0, zPos);
+                        
+                        // Colorize loaded mesh depending on focusing direction
+                        glbScene.traverse((child) => {
+                            if (child.isMesh && child.material) {
+                                child.material = child.material.clone();
+                                child.material.color.setHex(color);
+                            }
+                        });
+                        latticeGroup.add(glbScene);
+                    });
+                } else if (el instanceof cheetah.Cavity) {
+                    // 1. Procedural Cavity drum (gold)
+                    const geom = new THREE.CylinderGeometry(0.3, 0.3, elLength, 24);
+                    const mat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.3, metalness: 0.8 });
+                    const placeholder = new THREE.Mesh(geom, mat);
+                    placeholder.rotation.x = Math.PI / 2;
+                    placeholder.position.set(0, 0, zPos);
+                    placeholder.castShadow = true;
+                    placeholder.receiveShadow = true;
+                    latticeGroup.add(placeholder);
+
+                    // 2. Load GLB Cavity
+                    getOrLoadAsset('cavity.glb', (glbScene) => {
+                        if (!glbScene) return;
+                        latticeGroup.remove(placeholder);
+                        
+                        const box = new THREE.Box3().setFromObject(glbScene);
+                        const size = new THREE.Vector3();
+                        box.getSize(size);
+                        
+                        const visualScale = elLength / size.z;
+                        glbScene.scale.set(visualScale, visualScale, visualScale);
+                        glbScene.position.set(0, 0, zPos);
+                        latticeGroup.add(glbScene);
+                    });
+                } else if (el instanceof cheetah.Dipole) {
+                    // 1. Procedural Dipole box (cyan/blue magnet)
+                    const geom = new THREE.BoxGeometry(0.48, 0.36, elLength);
+                    const mat = new THREE.MeshStandardMaterial({ color: 0x008ec4, roughness: 0.5, metalness: 0.3 });
+                    const placeholder = new THREE.Mesh(geom, mat);
+                    placeholder.position.set(0, 0, zPos);
+                    placeholder.castShadow = true;
+                    placeholder.receiveShadow = true;
+                    latticeGroup.add(placeholder);
+
+                    // 2. Load GLB Dipole
+                    getOrLoadAsset('dipole.glb', (glbScene) => {
+                        if (!glbScene) return;
+                        latticeGroup.remove(placeholder);
+                        
+                        const box = new THREE.Box3().setFromObject(glbScene);
+                        const size = new THREE.Vector3();
+                        box.getSize(size);
+                        
+                        const visualScale = elLength / size.z;
+                        glbScene.scale.set(visualScale, visualScale, visualScale);
+                        glbScene.position.set(0, 0, zPos);
+                        latticeGroup.add(glbScene);
+                    });
+                } else if (el instanceof cheetah.Solenoid) {
+                    // Procedural Solenoid (coils winding around beamline, bright green)
+                    const geom = new THREE.CylinderGeometry(0.28, 0.28, elLength, 16, 1, true);
+                    const mat = new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.3, metalness: 0.7, side: THREE.DoubleSide });
+                    const outerCyl = new THREE.Mesh(geom, mat);
+                    outerCyl.rotation.x = Math.PI / 2;
+                    outerCyl.position.set(0, 0, zPos);
+                    latticeGroup.add(outerCyl);
+
+                    // Spiral wireframe representation inside
+                    const innerGeom = new THREE.CylinderGeometry(0.25, 0.25, elLength, 8, 12, true);
+                    const innerMat = new THREE.MeshBasicMaterial({ color: 0x059669, wireframe: true });
+                    const innerCyl = new THREE.Mesh(innerGeom, innerMat);
+                    innerCyl.rotation.x = Math.PI / 2;
+                    innerCyl.position.set(0, 0, zPos);
+                    latticeGroup.add(innerCyl);
+                } else if (el instanceof cheetah.Screen) {
+                    // Screen diagnostic (thin pink ring + plane)
+                    const geom = new THREE.CylinderGeometry(0.22, 0.22, 0.02, 16);
+                    const mat = new THREE.MeshStandardMaterial({ color: 0xec4899, roughness: 0.4 });
+                    const frame = new THREE.Mesh(geom, mat);
+                    frame.rotation.x = Math.PI / 2;
+                    frame.position.set(0, 0, zPos);
+                    latticeGroup.add(frame);
+
+                    const planeGeom = new THREE.PlaneGeometry(0.3, 0.3);
+                    const planeMat = new THREE.MeshBasicMaterial({ color: 0xdb2777, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+                    const plate = new THREE.Mesh(planeGeom, planeMat);
+                    plate.position.set(0, 0, zPos);
+                    latticeGroup.add(plate);
+
+                    // Load GLB Screen model
+                    getOrLoadAsset('screen.glb', (glbScene) => {
+                        if (!glbScene) return;
+                        latticeGroup.remove(frame);
+                        latticeGroup.remove(plate);
+                        
+                        const box = new THREE.Box3().setFromObject(glbScene);
+                        const size = new THREE.Vector3();
+                        box.getSize(size);
+                        
+                        // Screen is flat, scale to constant diameter of ~0.5 units
+                        const scaleFactor = 0.5 / size.x;
+                        glbScene.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                        glbScene.position.set(0, 0, zPos);
+                        latticeGroup.add(glbScene);
+                    });
+                } else if (el instanceof cheetah.BPM) {
+                    // BPM diagnostic (torus ring around beamline, white/silver)
+                    const geom = new THREE.TorusGeometry(0.18, 0.03, 8, 24);
+                    const mat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.2, metalness: 0.9 });
+                    const mesh = new THREE.Mesh(geom, mat);
+                    mesh.position.set(0, 0, zPos);
+                    latticeGroup.add(mesh);
+                } else if (el instanceof cheetah.HorizontalCorrector) {
+                    // Procedural Horizontal Corrector (thin orange coils on left/right)
+                    const coilGeom = new THREE.BoxGeometry(0.1, 0.2, 0.05);
+                    const mat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.4 });
+                    
+                    const leftCoil = new THREE.Mesh(coilGeom, mat);
+                    leftCoil.position.set(-0.2, 0, zPos);
+                    latticeGroup.add(leftCoil);
+                    
+                    const rightCoil = new THREE.Mesh(coilGeom, mat);
+                    rightCoil.position.set(0.2, 0, zPos);
+                    latticeGroup.add(rightCoil);
+
+                    // Load GLB Corrector model
+                    getOrLoadAsset('horizontal_corrector.glb', (glbScene) => {
+                        if (!glbScene) return;
+                        latticeGroup.remove(leftCoil);
+                        latticeGroup.remove(rightCoil);
+                        
+                        const box = new THREE.Box3().setFromObject(glbScene);
+                        const size = new THREE.Vector3();
+                        box.getSize(size);
+                        
+                        const scaleFactor = elLength > 0 ? elLength / size.z : 0.15 / size.z;
+                        glbScene.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                        glbScene.position.set(0, 0, zPos);
+                        latticeGroup.add(glbScene);
+                    });
+                } else if (el instanceof cheetah.VerticalCorrector) {
+                    // Procedural Vertical Corrector (thin orange coils on top/bottom)
+                    const coilGeom = new THREE.BoxGeometry(0.2, 0.1, 0.05);
+                    const mat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.4 });
+                    
+                    const topCoil = new THREE.Mesh(coilGeom, mat);
+                    topCoil.position.set(0, 0.2, zPos);
+                    latticeGroup.add(topCoil);
+                    
+                    const bottomCoil = new THREE.Mesh(coilGeom, mat);
+                    bottomCoil.position.set(0, -0.2, zPos);
+                    latticeGroup.add(bottomCoil);
+
+                    // Load GLB model
+                    getOrLoadAsset('vertical_corrector.glb', (glbScene) => {
+                        if (!glbScene) return;
+                        latticeGroup.remove(topCoil);
+                        latticeGroup.remove(bottomCoil);
+                        
+                        const box = new THREE.Box3().setFromObject(glbScene);
+                        const size = new THREE.Vector3();
+                        box.getSize(size);
+                        
+                        const scaleFactor = elLength > 0 ? elLength / size.z : 0.15 / size.z;
+                        glbScene.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                        glbScene.position.set(0, 0, zPos);
+                        latticeGroup.add(glbScene);
+                    });
+                } else if (el instanceof cheetah.CombinedCorrector) {
+                    // Procedural Combined Corrector (four orange coils)
+                    const mat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.4 });
+                    const coilH = new THREE.BoxGeometry(0.08, 0.16, 0.04);
+                    const coilV = new THREE.BoxGeometry(0.16, 0.08, 0.04);
+                    
+                    const c1 = new THREE.Mesh(coilH, mat); c1.position.set(-0.18, 0, zPos); latticeGroup.add(c1);
+                    const c2 = new THREE.Mesh(coilH, mat); c2.position.set(0.18, 0, zPos); latticeGroup.add(c2);
+                    const c3 = new THREE.Mesh(coilV, mat); c3.position.set(0, 0.18, zPos); latticeGroup.add(c3);
+                    const c4 = new THREE.Mesh(coilV, mat); c4.position.set(0, -0.18, zPos); latticeGroup.add(c4);
+
+                    // Load GLB model
+                    getOrLoadAsset('combined_corrector.glb', (glbScene) => {
+                        if (!glbScene) return;
+                        latticeGroup.remove(c1); latticeGroup.remove(c2); latticeGroup.remove(c3); latticeGroup.remove(c4);
+                        
+                        const box = new THREE.Box3().setFromObject(glbScene);
+                        const size = new THREE.Vector3();
+                        box.getSize(size);
+                        
+                        const scaleFactor = elLength > 0 ? elLength / size.z : 0.15 / size.z;
+                        glbScene.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                        glbScene.position.set(0, 0, zPos);
+                        latticeGroup.add(glbScene);
+                    });
+                } else if (el instanceof cheetah.Aperture) {
+                    // Aperture physical boundaries (glowing purple boundary planes)
+                    const color = 0xa78bfa;
+                    const widthX = el.x_max * 2.0 * 100.0; // Scaled up slightly for 3D visibility
+                    const widthY = el.y_max * 2.0 * 100.0;
+                    
+                    // Visualizing a hollow rectangle in 3D using BoxHelper style lines
+                    const geom = new THREE.BoxGeometry(widthX, widthY, 0.05);
+                    const edges = new THREE.EdgesGeometry(geom);
+                    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: color, linewidth: 2 }));
+                    line.position.set(0, 0, zPos);
+                    latticeGroup.add(line);
+                } else if (el instanceof cheetah.Marker) {
+                    // Markers: small vertical yellow dashed line
+                    const lineGeom = new THREE.BufferGeometry().setFromPoints([
+                        new THREE.Vector3(0, -0.4, zPos),
+                        new THREE.Vector3(0, 0.4, zPos)
+                    ]);
+                    const line = new THREE.Line(lineGeom, new THREE.LineDashedMaterial({ color: 0xeab308, dashSize: 0.1, gapSize: 0.05 }));
+                    line.computeLineDistances();
+                    latticeGroup.add(line);
+                }
+
+                currentS += elLength;
+            });
+        }
+
+        // Run tracking simulation, compute Twiss curves, and render in 3D
+        function simulateAndDraw() {
+            if (!segment) return;
+            
+            // 1. High resolution Twiss parameter tracking
+            // Split segment into small 0.02m pieces for smooth 3D curves
+            const splitRes = 0.02;
+            const splitSeg = segment.split(splitRes);
+            
+            // Get all beams along the split segment
+            trackedBeams = splitSeg.get_beams_along_segment(initialParamBeam);
+            const N = trackedBeams.length;
+
+            const sVals = new Float64Array(N);
+            const betaXVals = new Float64Array(N);
+            const betaYVals = new Float64Array(N);
+            const alphaXVals = new Float64Array(N);
+            const alphaYVals = new Float64Array(N);
+
+            let maxBeta = 1e-3;
+            let maxAlpha = 1e-3;
+
+            for (let j = 0; j < N; j++) {
+                const b = trackedBeams[j];
+                sVals[j] = b.s;
+                betaXVals[j] = b.beta_x;
+                betaYVals[j] = b.beta_y;
+                alphaXVals[j] = b.alpha_x;
+                alphaYVals[j] = b.alpha_y;
+
+                if (b.beta_x > maxBeta) maxBeta = b.beta_x;
+                if (b.beta_y > maxBeta) maxBeta = b.beta_y;
+                if (Math.abs(b.alpha_x) > maxAlpha) maxAlpha = Math.abs(b.alpha_x);
+                if (Math.abs(b.alpha_y) > maxAlpha) maxAlpha = Math.abs(b.alpha_y);
+            }
+
+            // Update statistics
+            document.getElementById('valEnergy').innerHTML = `${(initialParamBeam.energy / 1e6).toFixed(1)}<span class="metric-unit">MeV</span>`;
+            document.getElementById('valLength').innerHTML = `${segment.length.toFixed(2)}<span class="metric-unit">m</span>`;
+            document.getElementById('valCharge').innerHTML = `${(initialParamBeam.total_charge * 1e9).toFixed(2)}<span class="metric-unit">nC</span>`;
+
+            // 2. Clear old curves from scene
+            while(curvesGroup.children.length > 0) {
+                curvesGroup.remove(curvesGroup.children[0]);
+            }
+
+            // 3. Build 3D glowing tubes representing parameters
+            // We scale beta and alpha values visually so they fit nicely next to the magnet models.
+            // Targets: max beta amplitude ~ 1.2 units, max alpha amplitude ~ 0.8 units.
+            const scaleBeta = 1.2 / maxBeta;
+            const scaleAlpha = 0.8 / maxAlpha;
+
+            const pointsBetaX = [];
+            const pointsAlphaX = [];
+            const pointsBetaY = [];
+            const pointsAlphaY = [];
+
+            for (let j = 0; j < N; j++) {
+                const zVal = sVals[j]; // longitudinal position
+                
+                // Beta X / Alpha X plotted in horizontal plane (XZ plane, y = 0)
+                pointsBetaX.push(new THREE.Vector3(betaXVals[j] * scaleBeta, 0.0, zVal));
+                pointsAlphaX.push(new THREE.Vector3(alphaXVals[j] * scaleAlpha, 0.0, zVal));
+
+                // Beta Y / Alpha Y plotted in vertical plane (YZ plane, x = 0)
+                pointsBetaY.push(new THREE.Vector3(0.0, betaYVals[j] * scaleBeta, zVal));
+                pointsAlphaY.push(new THREE.Vector3(0.0, alphaYVals[j] * scaleAlpha, zVal));
+            }
+
+            // Helper to draw a CatmullRom spline tube
+            const drawSplineTube = (points, radius, color, emissiveColor, opacity = 1.0) => {
+                if (points.length < 2) return;
+                const curve = new THREE.CatmullRomCurve3(points);
+                const geom = new THREE.TubeGeometry(curve, 120, radius, 8, false);
+                const mat = new THREE.MeshStandardMaterial({
+                    color: color,
+                    roughness: 0.3,
+                    metalness: 0.2,
+                    emissive: emissiveColor,
+                    emissiveIntensity: 0.25,
+                    transparent: opacity < 1.0,
+                    opacity: opacity
+                });
+                const mesh = new THREE.Mesh(geom, mat);
+                mesh.castShadow = true;
+                curvesGroup.add(mesh);
+            };
+
+            // Draw tubes
+            drawSplineTube(pointsBetaX, 0.024, 0x00a6eb, 0x00a6eb); // Beta X (cyan)
+            drawSplineTube(pointsAlphaX, 0.012, 0x06b6d4, 0x06b6d4, 0.5); // Alpha X (thin cyan)
+            
+            drawSplineTube(pointsBetaY, 0.024, 0xec4899, 0xec4899); // Beta Y (pink)
+            drawSplineTube(pointsAlphaY, 0.012, 0xfbcfe8, 0xfbcfe8, 0.5); // Alpha Y (thin pink)
+
+            // Rebuild physical elements meshes
+            rebuild3DLattice();
+            
+            // Re-probe parameters at current position
+            updateProbePosition();
+        }
+
+        // Move the 3D probe ring and update sidebar with Twiss parameters at that s-coordinate
+        function updateProbePosition() {
+            if (trackedBeams.length === 0) return;
+            
+            const probeSlider = document.getElementById('probeSlider');
+            probeS = parseFloat(probeSlider.value);
+            
+            // Sync slider badge text
+            document.getElementById('probeSVal').innerText = `${probeS.toFixed(2)} m`;
+            document.getElementById('valProbeS').innerHTML = `${probeS.toFixed(2)}<span class="metric-unit">m</span>`;
+
+            // Position the 3D ring along Z-axis
+            probeRingMesh.position.set(0, 0, probeS);
+
+            // Interpolate metrics from closest tracked beams
+            let closestBeam = trackedBeams[0];
+            let minDist = Math.abs(closestBeam.s - probeS);
+            
+            for (let j = 1; j < trackedBeams.length; j++) {
+                const dist = Math.abs(trackedBeams[j].s - probeS);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestBeam = trackedBeams[j];
+                }
+            }
+
+            // Update sidebar text metrics
+            document.getElementById('valBetaX').innerText = closestBeam.beta_x.toFixed(3);
+            document.getElementById('valAlphaX').innerText = closestBeam.alpha_x.toFixed(3);
+            document.getElementById('valBetaY').innerText = closestBeam.beta_y.toFixed(3);
+            document.getElementById('valAlphaY').innerText = closestBeam.alpha_y.toFixed(3);
+        }
+
+        // Main animation/render loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Update OrbitControls
+            controls.update();
+
+            // Render
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>

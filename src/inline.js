@@ -1,4 +1,4 @@
-// inline.js - Inlines dist/cheetah.js directly into demo/index.html to create a self-contained page
+// inline.js - Inlines dist/cheetah.js directly into demo/index.html and demo/3d.html to create self-contained pages
 
 import fs from 'fs';
 import path from 'path';
@@ -7,12 +7,13 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const demoHtmlPath = path.join(__dirname, '../demo/index.html');
 const bundledJsPath = path.join(__dirname, '../dist/cheetah.js');
-const outputHtmlPath = path.join(__dirname, '../docs/index.html');
 
-function inline() {
-    console.log('Generating self-contained demo page...');
+function inlineFile(inputHtmlName, outputHtmlName) {
+    const demoHtmlPath = path.join(__dirname, `../demo/${inputHtmlName}`);
+    const outputHtmlPath = path.join(__dirname, `../docs/${outputHtmlName}`);
+    
+    console.log(`Generating self-contained page ${outputHtmlName}...`);
     
     // Ensure docs directory exists
     const docsDir = path.dirname(outputHtmlPath);
@@ -36,7 +37,7 @@ function inline() {
     const scriptRegex = /<script\s+src="\.\.\/dist\/cheetah\.js"><\/script>/i;
     
     if (!scriptRegex.test(html)) {
-        console.error('Could not find reference script tag in index.html');
+        console.error(`Could not find reference script tag in ${inputHtmlName}`);
         process.exit(1);
     }
 
@@ -47,4 +48,5 @@ function inline() {
     console.log(`Successfully generated self-contained HTML page at: ${outputHtmlPath}`);
 }
 
-inline();
+inlineFile('index.html', 'index.html');
+inlineFile('3d.html', '3d.html');
