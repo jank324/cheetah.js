@@ -16,10 +16,10 @@
             --panel-bg: rgba(17, 18, 25, 0.75);
             --card-bg: rgba(26, 27, 38, 0.45);
             --border-color: rgba(255, 255, 255, 0.08);
-            --border-glow: rgba(139, 92, 246, 0.15);
+            --border-glow: rgba(0, 166, 235, 0.15);
             
-            --accent-primary: hsl(265, 85%, 64%);      /* Glowing Violet */
-            --accent-primary-hover: hsl(265, 90%, 70%);
+            --accent-primary: hsl(198, 100%, 46%);      /* DESY Blue (#00A6EB) */
+            --accent-primary-hover: hsl(198, 100%, 55%);
             --accent-cyan: hsl(190, 95%, 48%);         /* X envelope / beam */
             --accent-pink: hsl(330, 95%, 60%);         /* Y envelope / beam */
             --accent-gold: hsl(45, 95%, 55%);          /* Cavity / RF */
@@ -52,8 +52,8 @@
             display: flex;
             flex-direction: column;
             background-image: 
-                radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.05) 0%, transparent 40%),
-                radial-gradient(circle at 90% 80%, rgba(6, 182, 212, 0.05) 0%, transparent 40%);
+                radial-gradient(circle at 10% 20%, rgba(0, 166, 235, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(242, 142, 0, 0.05) 0%, transparent 40%);
         }
 
         header {
@@ -166,7 +166,7 @@
 
         .preset-select:focus {
             border-color: var(--accent-primary);
-            box-shadow: 0 0 10px rgba(139, 92, 246, 0.15);
+            box-shadow: 0 0 10px rgba(0, 166, 235, 0.15);
         }
 
         .controls-list {
@@ -447,7 +447,7 @@
         .tab-btn.active {
             background-color: var(--accent-primary);
             color: #ffffff;
-            box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
+            box-shadow: 0 2px 6px rgba(0, 166, 235, 0.3);
         }
 
         /* Screen Selector Dropdown */
@@ -554,7 +554,7 @@
         .btn-primary {
             background-color: var(--accent-primary);
             color: white;
-            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+            box-shadow: 0 4px 12px rgba(0, 166, 235, 0.2);
         }
 
         .btn-primary:hover {
@@ -576,7 +576,13 @@
 
     <header>
         <div class="header-logo">
-            <div class="logo-badge">DESY</div>
+            <svg class="desy-logo-svg" viewBox="0 0 100 32" height="28" fill="#ffffff" style="display: block;">
+                <!-- Bold clean DESY letters -->
+                <text x="0" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-weight="900" font-size="28" letter-spacing="-0.5">DESY</text>
+                <!-- Orange dot representing the unknown -->
+                <circle cx="82" cy="23" r="4.5" fill="#F28E00" />
+            </svg>
+            <div style="width: 1px; height: 20px; background-color: var(--border-color); margin: 0 0.5rem;"></div>
             <h1>Cheetah.js</h1>
             <span>v0.1.0 (JS Port)</span>
         </div>
@@ -1260,7 +1266,7 @@
                     symbolH = 26;
                     symbolY = latticeY - 3;
                 } else if (el instanceof cheetah.Aperture) {
-                    color = 'rgba(139, 92, 246, 0.8)'; // Violet Aperture bounds
+                    color = 'rgba(242, 142, 0, 0.8)'; // DESY Orange Aperture bounds
                     drawW = 2.5;
                     symbolH = 24;
                     symbolY = latticeY - 2;
@@ -1374,7 +1380,7 @@
             if (plotMode === 'xpx') {
                 idxX = 0; idxY = 1;
                 labelX = 'x (mm)'; labelY = 'p_x (mrad)';
-                colorParticle = 'rgba(139, 92, 246, 0.75)'; // Violet
+                colorParticle = 'rgba(242, 142, 0, 0.75)'; // DESY Orange
             } else if (plotMode === 'ypy') {
                 idxX = 2; idxY = 3;
                 labelX = 'y (mm)'; labelY = 'p_y (mrad)';
