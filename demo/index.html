@@ -713,6 +713,13 @@
     <script src="../dist/cheetah.js"></script>
 
     <script>
+        // Global error logging for debugging
+        window.onerror = function (message, source, lineno, colno, error) {
+            console.error("Global JS Error:", message, "at", source, ":", lineno, ":", colno, error);
+            alert(`JavaScript Error: ${message}\nSource: ${source}\nLine: ${lineno}:${colno}`);
+            return false;
+        };
+
         // Preset Definitions
         const PRESETS = {
             fodo: {
@@ -772,9 +779,11 @@
                 for (let entry of entries) {
                     const width = entry.contentRect.width;
                     const height = entry.contentRect.height;
+                    console.log(`ResizeObserver: wrapper size = ${width}x${height}`);
                     if (width > 0 && height > 0) {
                         canvas.width = width;
                         canvas.height = height;
+                        console.log(`ResizeObserver: set canvas size to ${width}x${height}`);
                         simulateAndDraw();
                     }
                 }
@@ -1030,7 +1039,11 @@
 
         // Run simulation tracking, render SVG envelopes and Canvas scatter plot
         function simulateAndDraw() {
-            if (!segment) return;
+            if (!segment) {
+                console.warn("simulateAndDraw: segment is null or undefined");
+                return;
+            }
+            console.log(`simulateAndDraw: starting. selectedScreenName = ${selectedScreenName}`);
             
             // 1. High resolution envelope tracking using ParameterBeam
             // We split to 0.02m for smooth curves
@@ -1213,7 +1226,7 @@
                 const elWidth = el.length;
                 const startX = scaleX(currentS);
                 const endX = scaleX(currentS + elWidth);
-                const drawW = Math.max(2.0, endX - startX); // minimum 2px visible width
+                let drawW = Math.max(2.0, endX - startX); // minimum 2px visible width
                 
                 // Draw graphic block based on element class type
                 let color = 'rgba(255, 255, 255, 0.15)';
@@ -1333,6 +1346,8 @@
             
             const width = canvas.width;
             const height = canvas.height;
+            
+            console.log(`drawCanvasScatter: size = ${width}x${height}, beam type = ${beam ? beam.constructor.name : 'null'}, isParticleBeam = ${beam instanceof cheetah.ParticleBeam}`);
             
             ctx.clearRect(0, 0, width, height);
             
